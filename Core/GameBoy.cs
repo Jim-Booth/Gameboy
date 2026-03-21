@@ -1,4 +1,17 @@
-﻿using System;
+﻿// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/GameBoy.cs
+// Description: Main emulator orchestrator — ties CPU, MMU, PPU, and APU
+//              together and runs the emulation loop
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
+using System;
 using System.IO;
 
 #nullable enable

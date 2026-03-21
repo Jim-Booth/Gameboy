@@ -1,3 +1,16 @@
+// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/SDLDisplay.cs
+// Description: SDL2 display window, frame rendering, keyboard input,
+//              ROM selection menu, and built-in 5×7 bitmap font
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;

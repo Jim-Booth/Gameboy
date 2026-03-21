@@ -1,4 +1,16 @@
-﻿namespace GameboyEmu.Core
+﻿// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/Registers.cs
+// Description: CPU register definitions (AF, BC, DE, HL, SP, PC)
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
+namespace GameboyEmu.Core
 {
     public class Registers
     {

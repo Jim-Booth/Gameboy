@@ -1,4 +1,17 @@
-﻿using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/MMU.cs
+// Description: Memory Management Unit — 64 KB address space with MBC1/MBC2
+//              cartridge banking, ROM/RAM mapping, and I/O routing
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Net;
 using System.Diagnostics;
 using System;

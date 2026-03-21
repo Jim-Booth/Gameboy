@@ -1,4 +1,17 @@
-﻿namespace GameboyEmu.Core
+﻿// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/CPU.cs
+// Description: LR35902 CPU — full instruction set, CB prefixed opcodes,
+//              interrupt handling, and HALT emulation
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
+namespace GameboyEmu.Core
 {
     public class CPU(MMU _memory, GameBoy _gameboy)
     {

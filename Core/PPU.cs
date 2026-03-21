@@ -1,3 +1,16 @@
+// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/PPU.cs
+// Description: Pixel Processing Unit — scanline renderer for background,
+//              window, and sprite layers
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
 using System;
 using System.Diagnostics;
 

@@ -1,4 +1,16 @@
-﻿using System;
+﻿// ============================================================================
+// Project:     GameboyEmu
+// File:        Core/Cycles.cs
+// Description: CPU instruction cycle timing tables
+// Author:      James Booth
+// Created:     2024
+// License:     MIT License - See LICENSE file in the project root
+// Copyright:   (c) 2024-2026 James Booth
+// Notice:      Game Boy is a registered trademark of Nintendo Co., Ltd.
+//              This emulator is for educational purposes only.
+// ============================================================================
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
