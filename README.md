@@ -1,0 +1,96 @@
+# GameBoy Emulator
+
+A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross-platform graphics, audio, and input.
+
+## Features
+
+### CPU
+- Full LR35902 instruction set including all CB-prefixed opcodes
+- Accurate interrupt handling (VBlank, LCD STAT, Timer, Serial, Joypad)
+- HALT and HALT bug emulation
+
+### PPU (Pixel Processing Unit)
+- Scanline-based renderer at native 160×144 resolution, scaled 4× for display
+- Background and Window layer rendering with per-pixel scrolling
+- Sprite rendering with 8×8 and 8×16 modes
+- LCDC bit 0 (BG enable) support
+- Correct sprite priority (lower X coordinate wins; same X → lower OAM index wins)
+- 8×16 sprite tile index bit 0 masking
+- Window internal line counter for accurate mid-frame window toggling
+- OAM DMA transfer
+- Passes the **dmg-acid2** test ROM
+
+### APU (Audio Processing Unit)
+- All four sound channels:
+  - Channel 1 — Square wave with frequency sweep
+  - Channel 2 — Square wave
+  - Channel 3 — Programmable wave
+  - Channel 4 — Noise (LFSR)
+- Frame sequencer clocked at 512 Hz (length, envelope, sweep)
+- Stereo mixing with NR50 master volume and NR51 panning
+- 44100 Hz stereo float32 output via SDL2 audio queue
+
+### Memory (MMU)
+- Full 64 KB address space
+- MBC1 and MBC2 cartridge mappers with ROM/RAM banking
+- Boot ROM (`dmg_boot.bin`) execution with automatic hand-off to cartridge
+
+### Input
+- Keyboard-mapped joypad with proper hardware polling emulation
+
+### Display & UI
+- Cross-platform SDL2 window with nearest-neighbour scaling
+- Built-in ROM selection menu with a 5×7 pixel bitmap font
+- Automatic ROM scanning from the `ROMs/` directory
+- Menu scrolling (up to 10 visible entries)
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| Arrow Keys | D-Pad |
+| X | A |
+| Z | B |
+| Enter | Start |
+| Space | Select |
+| R | Reset (return to ROM menu) |
+| Escape | Quit |
+
+## Requirements
+
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [SDL2](https://www.libsdl.org/) runtime library installed on your system
+- `dmg_boot.bin` — Game Boy boot ROM (placed in the working directory)
+
+## Building & Running
+
+```bash
+dotnet build GameboyEmu.csproj
+dotnet run --project GameboyEmu.csproj
+```
+
+Place `.gb` ROM files in a `ROMs/` folder next to the executable (or working directory). The emulator will display a selection menu on launch. You can also pass a ROM path directly:
+
+```bash
+dotnet run --project GameboyEmu.csproj -- path/to/game.gb
+```
+
+## Project Structure
+
+```
+Core/
+  CPU.cs          - LR35902 CPU with full instruction set
+  MMU.cs          - Memory management unit with MBC1/MBC2 support
+  PPU.cs          - Pixel Processing Unit (scanline renderer)
+  APU.cs          - Audio Processing Unit (4 channels)
+  GameBoy.cs      - Main emulator loop tying all components together
+  SDLDisplay.cs   - SDL2 window, rendering, input, and ROM menu
+  SDL2Bindings.cs - SDL2 P/Invoke declarations
+  Registers.cs    - CPU register definitions
+  Flags.cs        - CPU flag helpers
+Program.cs        - Entry point and ROM loading flow
+```
+
+## License
+
+This project is for educational purposes.
