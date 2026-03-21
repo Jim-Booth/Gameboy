@@ -72,7 +72,7 @@ dotnet run --project GameboyEmu.csproj
 Place `.gb` ROM files in a `ROMs/` folder next to the executable (or working directory). The emulator will display a selection menu on launch. You can also pass a ROM path directly:
 
 ```bash
-dotnet run --project GameboyEmu.csproj -- path/to/game.gb
+dotnet run --project GameboyEmu.csproj
 ```
 
 ## Project Structure
@@ -90,6 +90,10 @@ Core/
   Flags.cs        - CPU flag helpers
 Program.cs        - Entry point and ROM loading flow
 ```
+
+## Disclaimer
+
+Game Boy is a registered trademark of Nintendo Co., Ltd. This project is not affiliated with or endorsed by Nintendo. All trademarks are property of their respective owners.
 
 ## License
 
