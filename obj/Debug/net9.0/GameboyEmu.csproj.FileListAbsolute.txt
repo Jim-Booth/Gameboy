@@ -1,0 +1,16 @@
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.Properties.Resources.resources
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.csproj.GenerateResource.cache
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.GeneratedMSBuildEditorConfig.editorconfig
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.AssemblyInfoInputs.cache
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.AssemblyInfo.cs
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.csproj.CoreCompileInputs.cache
+/Users/jamesbooth/Repo/Gameboy/bin/Debug/net9.0/GameboyEmu
+/Users/jamesbooth/Repo/Gameboy/bin/Debug/net9.0/GameboyEmu.deps.json
+/Users/jamesbooth/Repo/Gameboy/bin/Debug/net9.0/GameboyEmu.runtimeconfig.json
+/Users/jamesbooth/Repo/Gameboy/bin/Debug/net9.0/GameboyEmu.dll
+/Users/jamesbooth/Repo/Gameboy/bin/Debug/net9.0/GameboyEmu.pdb
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.dll
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/refint/GameboyEmu.dll
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.pdb
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/GameboyEmu.genruntimeconfig.cache
+/Users/jamesbooth/Repo/Gameboy/obj/Debug/net9.0/ref/GameboyEmu.dll
