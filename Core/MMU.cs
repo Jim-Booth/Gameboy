@@ -365,7 +365,7 @@ namespace GameboyEmu.Core
                 return gameboy!.GetKeypadState();
             }
 
-            else if (addr == 0xFF04) return (byte)new Random().Next(0, 255);
+            else if (addr == 0xFF04) return Memory[0xFF04];
 
             else if (addr >= 0xFF10 && addr <= 0xFF3F) // Audio registers → APU
             {

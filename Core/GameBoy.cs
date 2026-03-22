@@ -32,6 +32,8 @@ namespace GameboyEmu.Core
         public int DivCounter;
         public int TimerCounter = 1024;
         public int TimerVariable = 0;
+        private bool _timaOverflowPending = false;
+        private int _timaOverflowDelay = 0;
 
         byte keypadState = 0xFF;
 
@@ -151,7 +153,17 @@ namespace GameboyEmu.Core
                 }
 
                 if (cPU.IsHalted)
+                {
                     cycles = 4;
+                    // Check if an interrupt will wake us — if so, add exit latency
+                    if ((mMU!.IF & mMU!.IE & 0x1F) != 0)
+                    {
+                        // HALT exit takes an extra 4 T-cycles before the CPU resumes
+                        UpdateTimers(4);
+                        pPU.Update(4);
+                        aPU.Tick(4);
+                    }
+                }
                 else
                     cycles = cPU.Execute(mMU!.ReadByteFromMemory(cPU!.registers.PC++));
                 UpdateTimers(cycles);
@@ -168,23 +180,38 @@ namespace GameboyEmu.Core
         {
             byte timerAtts = mMU!.Memory[0xFF07];
             DivCounter += cycles;
+
+            // Handle pending TIMA overflow (1 M-cycle delay)
+            if (_timaOverflowPending)
+            {
+                _timaOverflowDelay -= cycles;
+                if (_timaOverflowDelay <= 0)
+                {
+                    mMU!.Memory[0xFF05] = mMU!.Memory[0xFF06];
+                    RequestInterrupt(2);
+                    _timaOverflowPending = false;
+                }
+            }
+
             if (TestBit(timerAtts, 2))
             {
                 TimerVariable += cycles;
                 if (TimerVariable >= TimerCounter)
                 {
-                    TimerVariable = 0;
+                    TimerVariable -= TimerCounter;
                     if (mMU!.Memory[0xFF05] == 0xFF)
                     {
-                        mMU!.Memory[0xFF05] = mMU!.Memory[0xFF06];
-                        RequestInterrupt(2);
+                        // Overflow: set TIMA to 0 now; reload + interrupt after 4 T-cycles
+                        mMU!.Memory[0xFF05] = 0x00;
+                        _timaOverflowPending = true;
+                        _timaOverflowDelay = 4;
                     }
                     else mMU!.Memory[0xFF05]++;
                 }
             }
             if (DivCounter >= 256)
             {
-                DivCounter = 0;
+                DivCounter -= 256;
                 mMU!.Memory[0xFF04]++;
             }
         }
@@ -197,8 +224,18 @@ namespace GameboyEmu.Core
         private void HandleInterupts()
         {
             for (int i = 0; i < 5; i++)
+            {
                 if ((((mMU!.IF & mMU!.IE) >> i) & 0x1) == 1)
-                    cPU!.ExecuteInterrupt(i);
+                {
+                    int intCycles = cPU!.ExecuteInterrupt(i);
+                    if (intCycles > 0)
+                    {
+                        UpdateTimers(intCycles);
+                        pPU.Update(intCycles);
+                        aPU.Tick(intCycles);
+                    }
+                }
+            }
             cPU!.UpdateIME();
         }
 

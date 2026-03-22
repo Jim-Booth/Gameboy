@@ -34,6 +34,9 @@ namespace GameboyEmu.Core
 
         public int[,,] LCD { get { return ScreenData; } }
 
+        // Current Mode 3 duration for this scanline — varies with sprite count,
+        // SCX fine scroll, and window usage.  Computed when a scanline is rendered.
+        private int currentMode3Duration = 172;
         private bool scanLineRendered = false;
         private bool lycWasMatching = false;
         private readonly Stopwatch frameTimer = new();
@@ -144,6 +147,15 @@ namespace GameboyEmu.Core
                 if (windowWasRenderedThisLine)
                     windowLineCounter++;
                 scanLineRendered = true;
+
+                // Compute variable Mode 3 duration for accurate STAT mode boundaries.
+                // Base: 172 dots. +SCX%8 for fine scroll penalty. +~6 per sprite on line. +6 if window active.
+                int spriteCount = CountSpritesOnLine(_mmu.Memory[0xFF44]);
+                int scxPenalty = _mmu.ReadByteFromMemory(0xFF43) % 8;
+                int windowPenalty = windowWasRenderedThisLine ? 6 : 0;
+                currentMode3Duration = 172 + scxPenalty + (spriteCount * 6) + windowPenalty;
+                // Clamp to hardware maximum (289 dots)
+                if (currentMode3Duration > 289) currentMode3Duration = 289;
             }
 
             SetLCDStatus();
@@ -182,7 +194,7 @@ namespace GameboyEmu.Core
             else
             {
                 int mode2bounds = 456 - 80;
-                int mode3bounds = mode2bounds - 172;
+                int mode3bounds = mode2bounds - currentMode3Duration;
                 if (ScanLineCounter >= mode2bounds)
                 {
                     mode = 2;
@@ -224,6 +236,24 @@ namespace GameboyEmu.Core
             lycWasMatching = lycMatching;
 
             _mmu.WriteByteToMemory(0xFF41, status);
+        }
+
+        /// <summary>
+        /// Counts how many sprites are visible on the given scanline (max 10).
+        /// Used to compute variable Mode 3 duration.
+        /// </summary>
+        private int CountSpritesOnLine(int scanline)
+        {
+            bool use8x16 = TestBit(_mmu.ReadByteFromMemory(0xFF40), 2);
+            int ysize = use8x16 ? 16 : 8;
+            int count = 0;
+            for (int sprite = 0; sprite < 40 && count < 10; sprite++)
+            {
+                byte yPos = (byte)(_mmu.ReadByteFromMemory((uint)(0xFE00 + sprite * 4)) - 16);
+                if (scanline >= yPos && scanline < yPos + ysize)
+                    count++;
+            }
+            return count;
         }
 
         private void DrawScanLine()

@@ -2116,7 +2116,7 @@ namespace GameboyEmu.Core
             EnableIME = false;
         }
 
-        public void ExecuteInterrupt(int b)
+        public int ExecuteInterrupt(int b)
         {
             if (Halted)
                 Halted = false;
@@ -2127,7 +2127,9 @@ namespace GameboyEmu.Core
                 registers.PC = (ushort)(0x40 + (8 * b));
                 IME = false;
                 memory!.IF = SetBit(memory!.IF, b, 0);
+                return 20; // Interrupt dispatch costs 5 M-cycles (20 T-cycles)
             }
+            return 0;
         }
 
         private void Halt()
