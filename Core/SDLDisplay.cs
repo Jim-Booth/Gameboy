@@ -26,8 +26,8 @@ namespace GameboyEmu.Core
     ///
     /// Key mapping:
     ///   Arrow keys  -> D-Pad
-    ///   X           -> A
-    ///   Z           -> B
+    ///   Z           -> A
+    ///   X           -> B
     ///   Enter       -> Start
     ///   Space       -> Select
     ///   Escape      -> Quit
@@ -202,8 +202,8 @@ namespace GameboyEmu.Core
             SDL2.SDL_SCANCODE_LEFT   => 1,
             SDL2.SDL_SCANCODE_UP     => 2,
             SDL2.SDL_SCANCODE_DOWN   => 3,
-            SDL2.SDL_SCANCODE_X      => 4, // A
-            SDL2.SDL_SCANCODE_Z      => 5, // B
+            SDL2.SDL_SCANCODE_Z      => 4, // A
+            SDL2.SDL_SCANCODE_X      => 5, // B
             SDL2.SDL_SCANCODE_SPACE  => 6, // Select
             SDL2.SDL_SCANCODE_RETURN => 7, // Start
             _ => -1
