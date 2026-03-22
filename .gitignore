@@ -1,3 +1,4 @@
 bin/
 obj/
 ROMs/*.gb
+dmg_boot.bin
