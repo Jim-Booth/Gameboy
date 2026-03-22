@@ -30,8 +30,7 @@ namespace GameboyEmu.Core
     ///   X           -> B
     ///   Enter       -> Start
     ///   Space       -> Select
-    ///   Escape      -> Quit
-    ///   R           -> Reset
+    ///   Escape      -> Reset (return to ROM menu)
     /// </summary>
     public class SDLDisplay : IDisposable
     {
@@ -168,13 +167,6 @@ namespace GameboyEmu.Core
         private void HandleKeyDown(int scancode, GameBoy gb)
         {
             if (scancode == SDL2.SDL_SCANCODE_ESCAPE)
-            {
-                IsOpen = false;
-                gb.cPU.Running = false;
-                return;
-            }
-
-            if (scancode == SDL2.SDL_SCANCODE_R)
             {
                 gb.ResetRequested = true;
                 return;
