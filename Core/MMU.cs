@@ -17,6 +17,8 @@ using System.Diagnostics;
 using System;
 using System.IO;
 
+#nullable enable
+
 namespace GameboyEmu.Core
 {
     public enum MBCType { None, MBC1, MBC2, MBC3, MBC5 }
@@ -35,6 +37,10 @@ namespace GameboyEmu.Core
         private bool EnableRAM = false;
         private int _romBankCount = 2;
         private int _ramSize = 0;
+
+        // Battery-backed save support
+        private bool _hasBattery = false;
+        private string? _savePath = null;
 
         // MBC3 RTC registers
         private byte _rtcS, _rtcM, _rtcH, _rtcDL, _rtcDH;
@@ -437,6 +443,21 @@ namespace GameboyEmu.Core
             if (MapperType == MBCType.MBC2)
                 _ramSize = 512;
 
+            // Determine if cartridge has a battery
+            _hasBattery = cartridgeType switch
+            {
+                0x03 => true,   // MBC1+RAM+BATTERY
+                0x06 => true,   // MBC2+BATTERY
+                0x09 => true,   // ROM+RAM+BATTERY
+                0x0D => true,   // MMM01+RAM+BATTERY
+                0x0F => true,   // MBC3+TIMER+BATTERY
+                0x10 => true,   // MBC3+TIMER+RAM+BATTERY
+                0x13 => true,   // MBC3+RAM+BATTERY
+                0x1B => true,   // MBC5+RAM+BATTERY
+                0x1E => true,   // MBC5+RUMBLE+RAM+BATTERY
+                _ => false,
+            };
+
             CurrentROMBank = 1;
             CurrentRAMBank = 0;
             EnableRAM = false;
@@ -444,7 +465,61 @@ namespace GameboyEmu.Core
             _mbc1AdvancedMode = false;
             _rtcMapped = false;
 
-            Console.WriteLine($"[MMU] Cartridge type: 0x{cartridgeType:X2} → {MapperType}, ROM banks: {_romBankCount}, RAM: {_ramSize} bytes");
+            Console.WriteLine($"[MMU] Cartridge type: 0x{cartridgeType:X2} → {MapperType}, ROM banks: {_romBankCount}, RAM: {_ramSize} bytes{(_hasBattery ? ", Battery" : "")}");
+
+            // Load battery-backed save if present
+            if (_hasBattery && _savePath != null)
+                LoadSave();
+        }
+
+        /// <summary>
+        /// Sets the save file path based on the ROM file path.
+        /// Called by GameBoy before InitROMBanks so the save can be loaded.
+        /// </summary>
+        public void SetSavePath(string romPath)
+        {
+            _savePath = Path.ChangeExtension(romPath, ".sav");
+        }
+
+        /// <summary>
+        /// Loads battery-backed RAM from a .sav file if it exists.
+        /// </summary>
+        private void LoadSave()
+        {
+            if (_savePath == null || !File.Exists(_savePath)) return;
+
+            try
+            {
+                byte[] data = File.ReadAllBytes(_savePath);
+                int copyLen = Math.Min(data.Length, RAMBanks.Length);
+                Array.Copy(data, 0, RAMBanks, 0, copyLen);
+                Console.WriteLine($"[MMU] Loaded save: {_savePath} ({copyLen} bytes)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MMU] Failed to load save: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Saves battery-backed RAM to a .sav file.
+        /// Called when the emulator exits or resets.
+        /// </summary>
+        public void SaveBattery()
+        {
+            if (!_hasBattery || _savePath == null || _ramSize == 0) return;
+
+            try
+            {
+                byte[] data = new byte[_ramSize];
+                Array.Copy(RAMBanks, 0, data, 0, _ramSize);
+                File.WriteAllBytes(_savePath, data);
+                Console.WriteLine($"[MMU] Saved battery RAM: {_savePath} ({_ramSize} bytes)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MMU] Failed to save: {ex.Message}");
+            }
         }
 
     }

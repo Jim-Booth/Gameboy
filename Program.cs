@@ -103,6 +103,7 @@ namespace GameboyEmu
                 gb.Start();
 
                 bool wasReset = gb.ResetRequested;
+                gb.mMU.SaveBattery(); // Save battery-backed RAM before cleanup
                 gb.aPU.Dispose();
 
                 if (!wasReset)

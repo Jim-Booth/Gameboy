@@ -66,6 +66,7 @@ namespace GameboyEmu.Core
             Array.Copy(File.ReadAllBytes(path), 0, mMU!.Cartridge, 0, size);
             Array.Copy(mMU!.Cartridge, 0, mMU!.Memory, 0, 0x8000);
             mMU!.CurrentROMBank = 1;
+            mMU!.SetSavePath(path);
 
             if (File.Exists("dmg_boot.bin"))
             {
