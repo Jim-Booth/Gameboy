@@ -67,6 +67,9 @@ namespace GameboyEmu.Core
             Array.Copy(mMU!.Cartridge, 0, mMU!.Memory, 0, 0x8000);
             mMU!.CurrentROMBank = 1;
 
+            // Derive .sav path from the ROM's internal title before InitROMBanks
+            mMU!.SetSavePath(path);
+
             if (File.Exists("dmg_boot.bin"))
             {
                 // Run the boot ROM: back up the first 0xFF bytes of the
@@ -81,6 +84,7 @@ namespace GameboyEmu.Core
                 // No boot ROM — jump straight to post-boot state.
                 InitialiseGameboyForCartridge(0x100);
                 mMU!.InitROMBanks();
+                mMU!.LoadBatteryRAM();
                 _useBootROM = false;
             }
         }
@@ -90,7 +94,13 @@ namespace GameboyEmu.Core
             Array.Copy(tempROM, 0, mMU!.Memory, 0, tempROM.Length); // replace kernal at 0x00 with temp memory
             InitialiseGameboyForCartridge(0x100);
             mMU!.InitROMBanks();
+            mMU!.LoadBatteryRAM();
         }
+
+        /// <summary>
+        /// Persists battery-backed RAM to disk if the cartridge supports it.
+        /// </summary>
+        public void SaveBatteryRAM() => mMU!.SaveBatteryRAM();
 
         private void InitialiseGameboyForCartridge(uint startPC)
         {

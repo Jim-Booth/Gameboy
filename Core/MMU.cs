@@ -36,6 +36,10 @@ namespace GameboyEmu.Core
         private int _romBankCount = 2;
         private int _ramSize = 0;
 
+        // Battery-backed save support
+        public bool HasBattery { get; private set; }
+        private string _savePath;
+
         // MBC3 RTC registers
         private byte _rtcS, _rtcM, _rtcH, _rtcDL, _rtcDH;
         private byte _rtcLatchedS, _rtcLatchedM, _rtcLatchedH, _rtcLatchedDL, _rtcLatchedDH;
@@ -437,6 +441,11 @@ namespace GameboyEmu.Core
             if (MapperType == MBCType.MBC2)
                 _ramSize = 512;
 
+            // Battery-backed cartridges persist external RAM to disk
+            HasBattery = cartridgeType is 0x03 or 0x06
+                                       or 0x0F or 0x10 or 0x13
+                                       or 0x1B or 0x1E;
+
             CurrentROMBank = 1;
             CurrentRAMBank = 0;
             EnableRAM = false;
@@ -444,7 +453,93 @@ namespace GameboyEmu.Core
             _mbc1AdvancedMode = false;
             _rtcMapped = false;
 
-            Console.WriteLine($"[MMU] Cartridge type: 0x{cartridgeType:X2} → {MapperType}, ROM banks: {_romBankCount}, RAM: {_ramSize} bytes");
+            Console.WriteLine($"[MMU] Cartridge type: 0x{cartridgeType:X2} → {MapperType}, ROM banks: {_romBankCount}, RAM: {_ramSize} bytes, Battery: {HasBattery}");
+        }
+
+        // =====================================================================
+        //  Battery-backed RAM save/load
+        // =====================================================================
+
+        /// <summary>
+        /// Derives the .sav file path from the ROM's internal title (header
+        /// bytes 0x0134–0x0143). The file is placed in a "Saves" folder
+        /// beside the executable.
+        /// </summary>
+        public void SetSavePath(string romFilePath)
+        {
+            // Read the internal ROM title from the cartridge header (up to 16 ASCII chars)
+            char[] titleChars = new char[16];
+            int len = 0;
+            for (int i = 0; i < 16; i++)
+            {
+                byte b = Cartridge[0x0134 + i];
+                if (b == 0) break;
+                // Replace filesystem-unsafe characters with underscore
+                char c = (char)b;
+                titleChars[len++] = char.IsLetterOrDigit(c) || c == '-' || c == '_' || c == ' '
+                    ? c : '_';
+            }
+
+            string title = new string(titleChars, 0, len).Trim();
+
+            // Fallback to the ROM filename if the header title is empty
+            if (string.IsNullOrWhiteSpace(title))
+                title = Path.GetFileNameWithoutExtension(romFilePath);
+
+            string savesDir = Path.Combine(AppContext.BaseDirectory, "Saves");
+            Directory.CreateDirectory(savesDir);
+            _savePath = Path.Combine(savesDir, $"{title}.sav");
+        }
+
+        /// <summary>
+        /// Loads battery-backed RAM from disk if the cartridge supports it
+        /// and a save file exists. Call after <see cref="InitROMBanks"/>.
+        /// </summary>
+        public void LoadBatteryRAM()
+        {
+            if (!HasBattery || _ramSize == 0 || _savePath == null)
+                return;
+
+            if (!File.Exists(_savePath))
+            {
+                Console.WriteLine($"[Battery] No save file found — starting fresh");
+                return;
+            }
+
+            try
+            {
+                byte[] data = File.ReadAllBytes(_savePath);
+                int copyLen = Math.Min(data.Length, Math.Min(_ramSize, RAMBanks.Length));
+                Array.Copy(data, 0, RAMBanks, 0, copyLen);
+                Console.WriteLine($"[Battery] Loaded {copyLen} bytes from {_savePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Battery] Failed to load save: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Persists battery-backed RAM to disk. Call when the emulation
+        /// session ends (reset, quit, or window close).
+        /// </summary>
+        public void SaveBatteryRAM()
+        {
+            if (!HasBattery || _ramSize == 0 || _savePath == null)
+                return;
+
+            try
+            {
+                // Write only the used portion of the RAM banks
+                byte[] data = new byte[_ramSize];
+                Array.Copy(RAMBanks, 0, data, 0, _ramSize);
+                File.WriteAllBytes(_savePath, data);
+                Console.WriteLine($"[Battery] Saved {_ramSize} bytes to {_savePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Battery] Failed to save: {ex.Message}");
+            }
         }
 
     }

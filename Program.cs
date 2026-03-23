@@ -102,6 +102,9 @@ namespace GameboyEmu
                 Console.WriteLine("Controls: Arrows/WASD=D-Pad, Z/M=A, X/N=B, Enter=Start, Space=Select, Esc=Reset");
                 gb.Start();
 
+                // Persist battery-backed save RAM when emulation ends
+                gb.SaveBatteryRAM();
+
                 bool wasReset = gb.ResetRequested;
                 gb.aPU.Dispose();
 
