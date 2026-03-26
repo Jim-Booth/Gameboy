@@ -3,6 +3,8 @@
 // File:        Core/APU.cs
 // Description: Audio Processing Unit — 4 sound channels, frame sequencer,
 //              stereo mixing, and SDL audio output
+//              Optimised: sealed class, AggressiveInlining on channel hot paths,
+//              flat duty cycle table replacing jagged array
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root
@@ -12,6 +14,7 @@
 // ============================================================================
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 #nullable enable
@@ -29,7 +32,7 @@ namespace GameboyEmu.Core
     /// Channel 4 – Noise (LFSR)                       (NR41–NR44, 0xFF20–0xFF23)
     /// Master     – NR50 (0xFF24), NR51 (0xFF25), NR52 (0xFF26)
     /// </summary>
-    public class APU : IDisposable
+    public sealed class APU : IDisposable
     {
         // ----- Constants -----
         private const int SampleRate = 44100;
@@ -183,6 +186,7 @@ namespace GameboyEmu.Core
             _fsStep = (_fsStep + 1) & 7;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ClockLengthCounters()
         {
             _ch1.ClockLength();
@@ -419,14 +423,16 @@ namespace GameboyEmu.Core
 
         private int _frequency;
 
-        private static readonly byte[][] Duty =
+        // Flat duty cycle table: 4 waveforms × 8 steps — avoids double-dereference of jagged array
+        internal static readonly byte[] Duty =
         {
-            new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 }, // 12.5 %
-            new byte[] { 1, 0, 0, 0, 0, 0, 0, 1 }, // 25 %
-            new byte[] { 1, 0, 0, 0, 0, 1, 1, 1 }, // 50 %
-            new byte[] { 0, 1, 1, 1, 1, 1, 1, 0 }, // 75 %
+            0, 0, 0, 0, 0, 0, 0, 1,  // 12.5 %
+            1, 0, 0, 0, 0, 0, 0, 1,  // 25 %
+            1, 0, 0, 0, 0, 1, 1, 1,  // 50 %
+            0, 1, 1, 1, 1, 1, 1, 0,  // 75 %
         };
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TickTimer()
         {
             if (--_freqTimer <= 0)
@@ -436,20 +442,23 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetOutput()
         {
             if (!Enabled) return 0;
-            return Duty[(NR11 >> 6) & 3][_dutyPos] * _volume;
+            return Duty[((NR11 >> 6) & 3) * 8 + _dutyPos] * _volume;
         }
 
         // --- Clocks ---
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockLength()
         {
             if (_lengthEnabled && _lengthCounter > 0)
                 if (--_lengthCounter == 0) Enabled = false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockEnvelope()
         {
             if (_envPeriod == 0) return;
@@ -461,6 +470,7 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockSweep()
         {
             if (--_sweepTimer <= 0)
@@ -564,14 +574,7 @@ namespace GameboyEmu.Core
         private int _volume, _envTimer, _envPeriod; private bool _envUp;
         private int _frequency;
 
-        private static readonly byte[][] Duty =
-        {
-            new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 },
-            new byte[] { 1, 0, 0, 0, 0, 0, 0, 1 },
-            new byte[] { 1, 0, 0, 0, 0, 1, 1, 1 },
-            new byte[] { 0, 1, 1, 1, 1, 1, 1, 0 },
-        };
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TickTimer()
         {
             if (--_freqTimer <= 0)
@@ -581,18 +584,21 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetOutput()
         {
             if (!Enabled) return 0;
-            return Duty[(NR21 >> 6) & 3][_dutyPos] * _volume;
+            return SquareSweepChannel.Duty[((NR21 >> 6) & 3) * 8 + _dutyPos] * _volume;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockLength()
         {
             if (_lengthEnabled && _lengthCounter > 0)
                 if (--_lengthCounter == 0) Enabled = false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockEnvelope()
         {
             if (_envPeriod == 0) return;
@@ -651,6 +657,7 @@ namespace GameboyEmu.Core
         private int _lengthCounter; private bool _lengthEnabled;
         private int _frequency;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TickTimer()
         {
             if (--_freqTimer <= 0)
@@ -660,6 +667,7 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetOutput()
         {
             if (!Enabled || (NR30 & 0x80) == 0) return 0;
@@ -679,6 +687,7 @@ namespace GameboyEmu.Core
             return sample;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockLength()
         {
             if (_lengthEnabled && _lengthCounter > 0)
@@ -735,6 +744,7 @@ namespace GameboyEmu.Core
 
         private static readonly int[] Divisors = { 8, 16, 32, 48, 64, 80, 96, 112 };
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TickTimer()
         {
             if (--_freqTimer <= 0)
@@ -752,18 +762,21 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetOutput()
         {
             if (!Enabled) return 0;
             return (~_lfsr & 1) * _volume;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockLength()
         {
             if (_lengthEnabled && _lengthCounter > 0)
                 if (--_lengthCounter == 0) Enabled = false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClockEnvelope()
         {
             if (_envPeriod == 0) return;

@@ -3,6 +3,7 @@
 // File:        Core/MMU.cs
 // Description: Memory Management Unit — 64 KB address space with MBC1/MBC2/
 //              MBC3/MBC5 cartridge banking, ROM/RAM mapping, and I/O routing
+//              Optimised: removed unused imports, timer speed lookup table
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root
@@ -11,9 +12,6 @@
 //              This emulator is for educational purposes only.
 // ============================================================================
 
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Net;
-using System.Diagnostics;
 using System;
 using System.IO;
 
@@ -48,6 +46,8 @@ namespace GameboyEmu.Core
         private byte _rtcLatchPrev = 0xFF;
         private bool _rtcMapped = false;     // true when 0x08-0x0C is selected instead of RAM bank
         private byte _rtcSelectedReg = 0;
+
+        private static readonly int[] TimerClockSpeeds = { 1024, 16, 64, 256 };
 
         private readonly GameBoy gameboy = gb;
 
@@ -266,17 +266,7 @@ namespace GameboyEmu.Core
             {
                 Memory[addr] = value;
 
-                int timerVal = value & 0x03;
-
-                int clockSpeed = 0;
-
-                switch (timerVal)
-                {
-                    case 0: clockSpeed = 1024; break;
-                    case 1: clockSpeed = 16; break;
-                    case 2: clockSpeed = 64; break;
-                    case 3: clockSpeed = 256; break; // 256
-                }
+                int clockSpeed = TimerClockSpeeds[value & 0x03];
 
                 if (clockSpeed != gameboy!.TimerCounter)
                 {
