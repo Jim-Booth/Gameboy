@@ -41,7 +41,6 @@ namespace GameboyEmu.Core
         private IntPtr _window;
         private IntPtr _renderer;
         private IntPtr _texture;
-        private readonly uint[] _pixelBuffer = new uint[ScreenWidth * ScreenHeight];
         private bool _disposed;
 
         public bool IsOpen { get; private set; }
@@ -105,25 +104,12 @@ namespace GameboyEmu.Core
         }
 
         /// <summary>
-        /// Converts the emulator's ScreenData[x, y, rgb] array to a packed ARGB
-        /// pixel buffer and presents it to the SDL window.
+        /// Uploads the PPU's packed ARGB pixel buffer directly to the GPU texture.
+        /// Zero conversion overhead — the PPU writes packed ARGB uint32 values.
         /// </summary>
-        public void RenderFrame(int[,,] screenData)
+        public void RenderFrame(uint[] pixelBuffer)
         {
-            // Convert ScreenData[x, y, channel] to packed ARGB uint32 buffer
-            for (int y = 0; y < ScreenHeight; y++)
-            {
-                for (int x = 0; x < ScreenWidth; x++)
-                {
-                    uint r = (uint)screenData[x, y, 0];
-                    uint g = (uint)screenData[x, y, 1];
-                    uint b = (uint)screenData[x, y, 2];
-                    _pixelBuffer[y * ScreenWidth + x] = 0xFF000000 | (r << 16) | (g << 8) | b;
-                }
-            }
-
-            // Pin the buffer and upload to GPU texture
-            GCHandle handle = GCHandle.Alloc(_pixelBuffer, GCHandleType.Pinned);
+            GCHandle handle = GCHandle.Alloc(pixelBuffer, GCHandleType.Pinned);
             try
             {
                 SDL.SDL_UpdateTexture(_texture, IntPtr.Zero,

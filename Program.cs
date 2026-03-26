@@ -11,7 +11,6 @@
 // ============================================================================
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using GameboyEmu.Core;
@@ -100,7 +99,7 @@ namespace GameboyEmu
                 gb.OnFrameReady = () =>
                 {
                     display.PollEvents(gb);
-                    display.RenderFrame(gb.LCD);
+                    display.RenderFrame(gb.pPU.ScreenBuffer);
                 };
 
                 Console.WriteLine("Controls: Arrows/WASD=D-Pad, Z/M=A, X/N=B, Enter=Start, Space=Select, Esc=Reset");

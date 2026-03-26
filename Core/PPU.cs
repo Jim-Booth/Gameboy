@@ -2,7 +2,8 @@
 // Project:     GameboyEmu
 // File:        Core/PPU.cs
 // Description: Pixel Processing Unit — scanline renderer for background,
-//              window, and sprite layers
+//              window, and sprite layers (optimised: flat buffers, palette
+//              LUT, zero per-scanline allocations)
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root
@@ -12,6 +13,7 @@
 // ============================================================================
 
 using System;
+using System.Runtime.CompilerServices;
 #nullable enable
 
 namespace GameboyEmu.Core
@@ -19,77 +21,143 @@ namespace GameboyEmu.Core
     public class PPU
     {
         private const int CyclesPerScanline = 456;
+        private const int Width = 160;
+        private const int Height = 144;
+
         private readonly MMU _mmu;
 
         public int ScanLineCounter = CyclesPerScanline;
 
-        private enum COLOUR { White, LightGray, DarkGray, Black }
+        // ---- Flat packed-ARGB pixel buffer: row-major [y * 160 + x] ----
+        private readonly uint[] _screenBuffer = new uint[Width * Height];
 
-        private readonly int[,,] ScreenData = new int[160, 144, 3];
+        // Raw BG/Window colour index (0-3) per pixel — used for sprite BG priority.
+        private readonly byte[] _bgColorIndex = new byte[Width * Height];
 
-        // Stores the raw BG/Window colour number (0-3) per pixel, before palette mapping.
-        // Used by sprite renderer to implement BG priority (attr bit 7).
-        private readonly int[,] bgColorIndex = new int[160, 144];
+        /// <summary>Packed ARGB pixel buffer — zero-copy access for the display.</summary>
+        public uint[] ScreenBuffer => _screenBuffer;
 
-        public int[,,] LCD { get { return ScreenData; } }
+        /// <summary>
+        /// Returns the screen as int[160,144,3] for backward compatibility.
+        /// Prefer <see cref="ScreenBuffer"/> for zero-copy access.
+        /// </summary>
+        public int[,,] LCD
+        {
+            get
+            {
+                var lcd = new int[Width, Height, 3];
+                for (int y = 0; y < Height; y++)
+                {
+                    for (int x = 0; x < Width; x++)
+                    {
+                        uint argb = _screenBuffer[y * Width + x];
+                        lcd[x, y, 0] = (int)((argb >> 16) & 0xFF);
+                        lcd[x, y, 1] = (int)((argb >> 8) & 0xFF);
+                        lcd[x, y, 2] = (int)(argb & 0xFF);
+                    }
+                }
+                return lcd;
+            }
+        }
 
-        // Current Mode 3 duration for this scanline — varies with sprite count,
-        // SCX fine scroll, and window usage.  Computed when a scanline is rendered.
+        /// <summary>Returns RGBA byte buffer for Blazor canvas rendering.</summary>
+        private readonly byte[] _frameBuffer = new byte[Width * Height * 4];
+        public byte[] FrameBuffer
+        {
+            get
+            {
+                for (int i = 0; i < Width * Height; i++)
+                {
+                    uint argb = _screenBuffer[i];
+                    int di = i * 4;
+                    _frameBuffer[di]     = (byte)((argb >> 16) & 0xFF); // R
+                    _frameBuffer[di + 1] = (byte)((argb >> 8) & 0xFF);  // G
+                    _frameBuffer[di + 2] = (byte)(argb & 0xFF);         // B
+                    _frameBuffer[di + 3] = 255;                          // A
+                }
+                return _frameBuffer;
+            }
+        }
+
+        // ---- Pre-computed palette LUT ----
+        // For every possible palette register value (0-255) × colour index (0-3)
+        // we store the final packed ARGB colour.
+        private static readonly uint[] PaletteLUT = new uint[256 * 4];
+
+        // ---- Sprite sorting — pre-allocated arrays (no List<>/closure allocs) ----
+        private readonly int[] _spriteOam = new int[10];
+        private readonly byte[] _spriteX = new byte[10];
+        private readonly byte[] _spriteY = new byte[10];
+        private readonly byte[] _spriteTile = new byte[10];
+        private readonly byte[] _spriteAttr = new byte[10];
+        private int _spriteCount;
+
+        // Current Mode 3 duration for this scanline.
         private int currentMode3Duration = 172;
         private bool scanLineRendered = false;
         private bool lycWasMatching = false;
 
-        // Window internal line counter – only increments on scanlines where
-        // the window was actually rendered.  Reset at frame start (VBlank).
+        // Window internal line counter.
         private int windowLineCounter = 0;
         private bool windowWasRenderedThisLine = false;
 
         private bool _frameReady;
+
+        // ---- Static constructor: build palette LUT once ----
+        static PPU()
+        {
+            // Game Boy green palette: mapped colour 0-3 → packed ARGB
+            uint[] colours =
+            [
+                0xFF9BBC0F, // White      (155, 188, 15)
+                0xFF8BAC0F, // LightGray  (139, 172, 15)
+                0xFF306230, // DarkGray   (48,  98,  48)
+                0xFF0F380F  // Black      (15,  56,  15)
+            ];
+
+            for (int pal = 0; pal < 256; pal++)
+            {
+                for (int colIdx = 0; colIdx < 4; colIdx++)
+                {
+                    int mapped = (pal >> (colIdx * 2)) & 0x03;
+                    PaletteLUT[pal * 4 + colIdx] = colours[mapped];
+                }
+            }
+        }
 
         public PPU(MMU mmu)
         {
             _mmu = mmu;
         }
 
-        // ----- Bit helpers (local copies) -----
+        // ----- Bit helpers (inlined for hot paths) -----
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool TestBit(byte data, int bitPos)
-        {
-            return (data & (1 << bitPos)) != 0;
-        }
+            => (data & (1 << bitPos)) != 0;
 
-        private static int GetBit(byte data, int bitPos)
-        {
-            return TestBit(data, bitPos) ? 1 : 0;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static byte SetBit(int reg, int bit, int val)
+            => val == 1 ? (byte)(reg | (1 << bit)) : (byte)(reg & ~(1 << bit));
 
-        private static byte SetBit(int register, int bitIndex, int newBitValue)
-        {
-            if (newBitValue == 1)
-                return (byte)(register |= (1 << bitIndex));
-            else
-                return (byte)(register &= ~(1 << bitIndex));
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void RequestInterrupt(int id)
-        {
-            _mmu.IF = SetBit(_mmu.IF, id, 1);
-        }
+            => _mmu.IF = (byte)(_mmu.IF | (1 << id));
 
         // ----- Public API -----
 
         public void Update(int cycles)
         {
-            if (!IsLCDEnabled())
+            byte[] mem = _mmu.Memory;
+
+            if ((mem[0xFF40] & 0x80) == 0)
             {
                 // LCD off: reset scanline state, stay in mode 1 (VBlank)
                 ScanLineCounter = CyclesPerScanline;
-                _mmu.Memory[0xFF44] = 0;
+                mem[0xFF44] = 0;
                 scanLineRendered = false;
                 windowLineCounter = 0;
-                byte stat = _mmu.ReadByteFromMemory(0xFF41);
-                stat = (byte)((stat & 0xFC) | 0x01);
-                _mmu.WriteByteToMemory(0xFF41, stat);
+                mem[0xFF41] = (byte)((mem[0xFF41] & 0xFC) | 0x01);
                 return;
             }
 
@@ -102,31 +170,27 @@ namespace GameboyEmu.Core
                 scanLineRendered = false;
 
                 // Advance LY
-                _mmu.Memory[0xFF44]++;
+                mem[0xFF44]++;
 
                 // VBlank: LY reaches 144
-                if (_mmu.Memory[0xFF44] == 144)
+                if (mem[0xFF44] == 144)
                 {
                     RequestInterrupt(0);
-                    // All 144 visible lines are complete.
                     _frameReady = true;
                 }
 
                 // Wrap after line 153
-                if (_mmu.Memory[0xFF44] > 153)
-                    _mmu.Memory[0xFF44] = 0;
+                if (mem[0xFF44] > 153)
+                    mem[0xFF44] = 0;
 
                 // Reset window line counter at the start of a new frame
-                if (_mmu.Memory[0xFF44] == 0)
+                if (mem[0xFF44] == 0)
                     windowLineCounter = 0;
             }
 
             // Draw scanline when entering Mode 3 (after 80 cycles of Mode 2)
-            // This gives STAT LYC interrupt handlers time to change scroll
-            // registers before the scanline is actually rendered.
-            int mode2End = 456 - 80;
-            if (!scanLineRendered && ScanLineCounter <= mode2End
-                && _mmu.Memory[0xFF44] < 144)
+            if (!scanLineRendered && ScanLineCounter <= 376 // 456 - 80
+                && mem[0xFF44] < 144)
             {
                 windowWasRenderedThisLine = false;
                 DrawScanLine();
@@ -135,12 +199,10 @@ namespace GameboyEmu.Core
                 scanLineRendered = true;
 
                 // Compute variable Mode 3 duration for accurate STAT mode boundaries.
-                // Base: 172 dots. +SCX%8 for fine scroll penalty. +~6 per sprite on line. +6 if window active.
-                int spriteCount = CountSpritesOnLine(_mmu.Memory[0xFF44]);
-                int scxPenalty = _mmu.ReadByteFromMemory(0xFF43) % 8;
+                int spriteCount = CountSpritesOnLine(mem[0xFF44]);
+                int scxPenalty = mem[0xFF43] & 7;
                 int windowPenalty = windowWasRenderedThisLine ? 6 : 0;
                 currentMode3Duration = 172 + scxPenalty + (spriteCount * 6) + windowPenalty;
-                // Clamp to hardware maximum (289 dots)
                 if (currentMode3Duration > 289) currentMode3Duration = 289;
             }
 
@@ -151,38 +213,32 @@ namespace GameboyEmu.Core
         {
             uint address = (uint)(value << 8);
             for (int i = 0; i < 0xA0; i++)
-                _mmu.WriteByteToMemory((uint)(0xFE00 + i), _mmu.ReadByteFromMemory((uint)(address + i)));
+                _mmu.WriteByteToMemory((uint)(0xFE00 + i), _mmu.ReadByteFromMemory(address + (uint)i));
         }
 
         public bool ConsumeFrameReady()
         {
-            bool frameReady = _frameReady;
+            bool ready = _frameReady;
             _frameReady = false;
-            return frameReady;
+            return ready;
         }
 
         // ----- Internal methods -----
 
-        private bool IsLCDEnabled()
-        {
-            return TestBit(_mmu.ReadByteFromMemory(0xFF40), 7);
-        }
-
         private void SetLCDStatus()
         {
-            byte status = _mmu.ReadByteFromMemory(0xFF41);
-
-            byte currentline = _mmu.ReadByteFromMemory(0xFF44);
-            byte currentmode = (byte)(status & 0x3);
+            byte[] mem = _mmu.Memory;
+            byte status = mem[0xFF41];
+            byte currentline = mem[0xFF44];
+            byte currentmode = (byte)(status & 0x03);
             bool reqInt = false;
-            int mode = 0;
+            int mode;
 
             if (currentline >= 144)
             {
                 mode = 1;
-                status = SetBit(status, 0, 1);
-                status = SetBit(status, 1, 0);
-                reqInt = TestBit(status, 4);
+                status = (byte)((status & 0xFC) | 0x01);
+                reqInt = (status & 0x10) != 0;
             }
             else
             {
@@ -191,22 +247,19 @@ namespace GameboyEmu.Core
                 if (ScanLineCounter >= mode2bounds)
                 {
                     mode = 2;
-                    status = SetBit(status, 1, 1);
-                    status = SetBit(status, 0, 0);
-                    reqInt = TestBit(status, 5);
+                    status = (byte)((status & 0xFC) | 0x02);
+                    reqInt = (status & 0x20) != 0;
                 }
                 else if (ScanLineCounter >= mode3bounds)
                 {
                     mode = 3;
-                    status = SetBit(status, 1, 1);
-                    status = SetBit(status, 0, 1);
+                    status = (byte)((status & 0xFC) | 0x03);
                 }
                 else
                 {
                     mode = 0;
-                    status = SetBit(status, 1, 0);
-                    status = SetBit(status, 0, 0);
-                    reqInt = TestBit(status, 3);
+                    status = (byte)(status & 0xFC);
+                    reqInt = (status & 0x08) != 0;
                 }
             }
 
@@ -215,20 +268,20 @@ namespace GameboyEmu.Core
                 RequestInterrupt(1);
 
             // LYC coincidence: fire only on RISING EDGE (transition to match)
-            bool lycMatching = (currentline == _mmu.ReadByteFromMemory(0xFF45));
+            bool lycMatching = (currentline == mem[0xFF45]);
             if (lycMatching)
             {
-                status = SetBit(status, 2, 1);
-                if (!lycWasMatching && TestBit(status, 6))
+                status |= 0x04;
+                if (!lycWasMatching && (status & 0x40) != 0)
                     RequestInterrupt(1);
             }
             else
             {
-                status = SetBit(status, 2, 0);
+                status &= unchecked((byte)~0x04);
             }
             lycWasMatching = lycMatching;
 
-            _mmu.WriteByteToMemory(0xFF41, status);
+            mem[0xFF41] = status;
         }
 
         /// <summary>
@@ -237,12 +290,12 @@ namespace GameboyEmu.Core
         /// </summary>
         private int CountSpritesOnLine(int scanline)
         {
-            bool use8x16 = TestBit(_mmu.ReadByteFromMemory(0xFF40), 2);
-            int ysize = use8x16 ? 16 : 8;
+            byte[] mem = _mmu.Memory;
+            int ysize = (mem[0xFF40] & 0x04) != 0 ? 16 : 8;
             int count = 0;
             for (int sprite = 0; sprite < 40 && count < 10; sprite++)
             {
-                byte yPos = (byte)(_mmu.ReadByteFromMemory((uint)(0xFE00 + sprite * 4)) - 16);
+                byte yPos = (byte)(mem[0xFE00 + sprite * 4] - 16);
                 if (scanline >= yPos && scanline < yPos + ysize)
                     count++;
             }
@@ -251,61 +304,65 @@ namespace GameboyEmu.Core
 
         private void DrawScanLine()
         {
-            byte lcdControl = _mmu.Memory[0xFF40];
-            if (TestBit(lcdControl, 7))
+            byte[] mem = _mmu.Memory;
+            byte lcdControl = mem[0xFF40];
+            if ((lcdControl & 0x80) == 0) return;
+
+            byte currentLine = mem[0xFF44];
+
+            if ((lcdControl & 0x01) != 0)
             {
-                if (TestBit(lcdControl, 0))
-                {
-                    RenderTiles(lcdControl);
-                }
-                else
-                {
-                    // LCDC bit 0 clear: BG and Window are blank (colour 0)
-                    byte currentLine = _mmu.ReadByteFromMemory(0xFF44);
-                    COLOUR col = GetColour(0, 0xFF47);
-                    int red = 155, green = 188, blue = 15;
-                    switch (col)
-                    {
-                        case COLOUR.White: red = 155; green = 188; blue = 15; break;
-                        case COLOUR.LightGray: red = 139; green = 172; blue = 15; break;
-                        case COLOUR.DarkGray: red = 48; green = 98; blue = 48; break;
-                        case COLOUR.Black: red = 15; green = 56; blue = 15; break;
-                    }
-                    for (int pixel = 0; pixel < 160; pixel++)
-                    {
-                        bgColorIndex[pixel, currentLine] = 0;
-                        ScreenData[pixel, currentLine, 0] = red;
-                        ScreenData[pixel, currentLine, 1] = green;
-                        ScreenData[pixel, currentLine, 2] = blue;
-                    }
-                }
-                RenderSprites(lcdControl);
+                RenderTiles(lcdControl, currentLine);
             }
+            else
+            {
+                // BG disabled: fill with colour 0 from BG palette
+                byte palette = mem[0xFF47];
+                uint col = PaletteLUT[palette * 4]; // colour index 0
+                int rowBase = currentLine * Width;
+                for (int pixel = 0; pixel < Width; pixel++)
+                {
+                    _bgColorIndex[rowBase + pixel] = 0;
+                    _screenBuffer[rowBase + pixel] = col;
+                }
+            }
+            RenderSprites(lcdControl, currentLine);
         }
 
-        private void RenderTiles(byte lcdControl)
+        private void RenderTiles(byte lcdControl, byte currentLine)
         {
-            byte scrollY = _mmu.ReadByteFromMemory(0xFF42);
-            byte scrollX = _mmu.ReadByteFromMemory(0xFF43);
-            byte windowY = _mmu.ReadByteFromMemory(0xFF4A);
-            byte windowX = (byte)(_mmu.ReadByteFromMemory(0xFF4B) - 7);
-            byte currentLine = _mmu.ReadByteFromMemory(0xFF44);
+            byte[] mem = _mmu.Memory;
+            byte scrollY = mem[0xFF42];
+            byte scrollX = mem[0xFF43];
+            byte windowY = mem[0xFF4A];
+            byte windowX = (byte)(mem[0xFF4B] - 7);
+            byte bgPalette = mem[0xFF47];
 
-            bool windowEnabled = TestBit(lcdControl, 5) && (windowY <= currentLine);
+            bool windowEnabled = (lcdControl & 0x20) != 0 && (windowY <= currentLine);
 
             ushort tileData;
-            bool unsig = true;
-            if (TestBit(lcdControl, 4))
+            bool unsig;
+            if ((lcdControl & 0x10) != 0)
+            {
                 tileData = 0x8000;
+                unsig = true;
+            }
             else
             {
                 tileData = 0x8800;
                 unsig = false;
             }
 
-            for (int pixel = 0; pixel < 160; pixel++)
+            int rowBase = currentLine * Width;
+            int palBase = bgPalette * 4;
+
+            // Cache tile row data to avoid re-reading for every pixel in the same tile
+            int cachedTileX = -1;
+            bool cachedIsWindow = false;
+            byte data1 = 0, data2 = 0;
+
+            for (int pixel = 0; pixel < Width; pixel++)
             {
-                // Decide per-pixel whether this pixel falls in the window or background
                 bool useWindow = windowEnabled && (pixel >= windowX);
 
                 byte xPos, yPos;
@@ -315,186 +372,130 @@ namespace GameboyEmu.Core
                 {
                     xPos = (byte)(pixel - windowX);
                     yPos = (byte)windowLineCounter;
-                    tileMapBase = TestBit(lcdControl, 6) ? (uint)0x9C00 : 0x9800;
+                    tileMapBase = (lcdControl & 0x40) != 0 ? 0x9C00u : 0x9800u;
                     windowWasRenderedThisLine = true;
                 }
                 else
                 {
                     xPos = (byte)(pixel + scrollX);
                     yPos = (byte)(scrollY + currentLine);
-                    tileMapBase = TestBit(lcdControl, 3) ? (uint)0x9C00 : 0x9800;
+                    tileMapBase = (lcdControl & 0x08) != 0 ? 0x9C00u : 0x9800u;
                 }
 
-                uint tileRow = (uint)(((byte)(yPos / 8)) * 32);
-                uint tileCol = (uint)(xPos / 8);
-                uint tileAddress = tileMapBase + tileRow + tileCol;
+                int tileX = xPos >> 3;
 
-                short tileNum;
-                if (unsig)
-                    tileNum = _mmu.ReadByteFromMemory(tileAddress);
-                else
-                    tileNum = unchecked((sbyte)(_mmu.ReadByteFromMemory(tileAddress)));
-
-                ushort tileLocation = tileData;
-                if (unsig)
-                    tileLocation += (ushort)(tileNum * 16);
-                else
-                    tileLocation += (ushort)((tileNum + 128) * 16);
-
-                byte line = (byte)(yPos % 8);
-                line *= 2;
-                byte data1 = _mmu.ReadByteFromMemory((uint)(tileLocation + line));
-                byte data2 = _mmu.ReadByteFromMemory((uint)(tileLocation + line + 1));
-
-                int colourBit = xPos % 8;
-                colourBit -= 7;
-                colourBit *= -1;
-
-                int colourNum = GetBit(data2, colourBit);
-                colourNum <<= 1;
-                colourNum |= GetBit(data1, colourBit);
-
-                COLOUR col = GetColour(colourNum, 0xFF47);
-                int red = 15, green = 56, blue = 15;
-                switch (col)
+                // Only re-fetch tile data when crossing a tile boundary or BG↔Window switch
+                if (tileX != cachedTileX || useWindow != cachedIsWindow)
                 {
-                    case COLOUR.White: red = 155; green = 188; blue = 15; break;
-                    case COLOUR.LightGray: red = 139; green = 172; blue = 15; break;
-                    case COLOUR.DarkGray: red = 48; green = 98; blue = 48; break;
+                    cachedTileX = tileX;
+                    cachedIsWindow = useWindow;
+
+                    uint tileAddress = tileMapBase + (uint)((yPos >> 3) * 32) + (uint)tileX;
+
+                    int tileLocation;
+                    if (unsig)
+                        tileLocation = tileData + mem[tileAddress] * 16;
+                    else
+                        tileLocation = tileData + (unchecked((sbyte)mem[tileAddress]) + 128) * 16;
+
+                    int line = (yPos & 7) * 2;
+                    data1 = mem[tileLocation + line];
+                    data2 = mem[tileLocation + line + 1];
                 }
 
-                if ((currentLine > 143) || (pixel > 159))
-                    continue;
+                int colourBit = 7 - (xPos & 7);
+                int colourNum = ((data2 >> colourBit) & 1) << 1 | ((data1 >> colourBit) & 1);
 
-                bgColorIndex[pixel, currentLine] = colourNum;
-                ScreenData[pixel, currentLine, 0] = red;
-                ScreenData[pixel, currentLine, 1] = green;
-                ScreenData[pixel, currentLine, 2] = blue;
+                int bufIdx = rowBase + pixel;
+                _bgColorIndex[bufIdx] = (byte)colourNum;
+                _screenBuffer[bufIdx] = PaletteLUT[palBase + colourNum];
             }
         }
 
-        private COLOUR GetColour(int colourNum, uint address)
+        private void RenderSprites(byte lcdControl, byte scanline)
         {
-            COLOUR res = COLOUR.White;
-            byte palette = _mmu.ReadByteFromMemory(address);
-            int hi = 0;
-            int lo = 0;
-            switch (colourNum)
-            {
-                case 0: hi = 1; lo = 0; break;
-                case 1: hi = 3; lo = 2; break;
-                case 2: hi = 5; lo = 4; break;
-                case 3: hi = 7; lo = 6; break;
-            }
-            int colour = 0;
-            colour = GetBit(palette, hi) << 1;
-            colour |= GetBit(palette, lo);
-            switch (colour)
-            {
-                case 0: res = COLOUR.White; break;
-                case 1: res = COLOUR.LightGray; break;
-                case 2: res = COLOUR.DarkGray; break;
-                case 3: res = COLOUR.Black; break;
-            }
-            return res;
-        }
+            if ((lcdControl & 0x02) == 0) return;
 
-        private void RenderSprites(byte lcdControl)
-        {
-            if (!TestBit(lcdControl, 1))
-                return;
-
-            bool use8x16 = TestBit(lcdControl, 2);
+            byte[] mem = _mmu.Memory;
+            bool use8x16 = (lcdControl & 0x04) != 0;
             int ysize = use8x16 ? 16 : 8;
-            int scanline = _mmu.ReadByteFromMemory(0xFF44);
 
-            // Collect the first 10 visible sprites in OAM order (hardware limit)
-            var sprites = new System.Collections.Generic.List<(int oamIdx, byte xPos, byte yPos, byte tileNum, byte attr)>();
-
-            for (int sprite = 0; sprite < 40 && sprites.Count < 10; sprite++)
+            // Collect visible sprites into pre-allocated arrays (zero allocation)
+            _spriteCount = 0;
+            for (int sprite = 0; sprite < 40 && _spriteCount < 10; sprite++)
             {
                 int addr = 0xFE00 + sprite * 4;
-                byte yPos = (byte)(_mmu.ReadByteFromMemory((uint)addr) - 16);
-                byte xPos = (byte)(_mmu.ReadByteFromMemory((uint)(addr + 1)) - 8);
-
-                if ((scanline >= yPos) && (scanline < (yPos + ysize)))
+                byte yPos = (byte)(mem[addr] - 16);
+                if (scanline >= yPos && scanline < yPos + ysize)
                 {
-                    byte tileNum = _mmu.ReadByteFromMemory((uint)(addr + 2));
-                    byte attr = _mmu.ReadByteFromMemory((uint)(addr + 3));
-                    sprites.Add((sprite, xPos, yPos, tileNum, attr));
+                    int i = _spriteCount++;
+                    _spriteOam[i] = sprite;
+                    _spriteX[i] = (byte)(mem[addr + 1] - 8);
+                    _spriteY[i] = yPos;
+                    _spriteTile[i] = mem[addr + 2];
+                    _spriteAttr[i] = mem[addr + 3];
                 }
             }
 
-            // DMG priority: lower X wins; same X → lower OAM index wins.
-            // Sort in REVERSE priority order so the highest-priority sprite
-            // is drawn last and its pixels end up on top.
-            sprites.Sort((a, b) =>
+            // Insertion sort in reverse priority order (≤10 items, no allocation)
+            for (int i = 1; i < _spriteCount; i++)
             {
-                if (a.xPos != b.xPos) return b.xPos.CompareTo(a.xPos);
-                return b.oamIdx.CompareTo(a.oamIdx);
-            });
+                int j = i;
+                while (j > 0)
+                {
+                    bool swap = _spriteX[j] != _spriteX[j - 1]
+                        ? _spriteX[j] > _spriteX[j - 1]
+                        : _spriteOam[j] > _spriteOam[j - 1];
+                    if (!swap) break;
 
-            foreach (var (oamIdx, xPos, yPos, tileNum, attr) in sprites)
+                    (_spriteOam[j], _spriteOam[j - 1]) = (_spriteOam[j - 1], _spriteOam[j]);
+                    (_spriteX[j], _spriteX[j - 1]) = (_spriteX[j - 1], _spriteX[j]);
+                    (_spriteY[j], _spriteY[j - 1]) = (_spriteY[j - 1], _spriteY[j]);
+                    (_spriteTile[j], _spriteTile[j - 1]) = (_spriteTile[j - 1], _spriteTile[j]);
+                    (_spriteAttr[j], _spriteAttr[j - 1]) = (_spriteAttr[j - 1], _spriteAttr[j]);
+                    j--;
+                }
+            }
+
+            int rowBase = scanline * Width;
+
+            for (int s = 0; s < _spriteCount; s++)
             {
-                bool yFlip = TestBit(attr, 6);
-                bool xFlip = TestBit(attr, 5);
+                byte xPos = _spriteX[s];
+                byte yPos = _spriteY[s];
+                byte attr = _spriteAttr[s];
+                bool yFlip = (attr & 0x40) != 0;
+                bool xFlip = (attr & 0x20) != 0;
 
-                // In 8x16 mode, bit 0 of the tile index is ignored
-                byte tile = tileNum;
-                if (use8x16)
-                    tile &= 0xFE;
+                byte tile = _spriteTile[s];
+                if (use8x16) tile &= 0xFE;
 
                 int line = scanline - yPos;
-                if (yFlip)
-                    line = (ysize - 1) - line;
-
+                if (yFlip) line = (ysize - 1) - line;
                 line *= 2;
 
-                uint dataAddress = (uint)(0x8000 + tile * 16 + line);
-                byte data1 = _mmu.ReadByteFromMemory(dataAddress);
-                byte data2 = _mmu.ReadByteFromMemory(dataAddress + 1);
+                int dataAddress = 0x8000 + tile * 16 + line;
+                byte data1 = mem[dataAddress];
+                byte data2 = mem[dataAddress + 1];
+
+                byte palette = (attr & 0x10) != 0 ? mem[0xFF49] : mem[0xFF48];
+                int palBase = palette * 4;
 
                 for (int tilePixel = 7; tilePixel >= 0; tilePixel--)
                 {
-                    int colourbit = tilePixel;
-                    if (xFlip)
-                    {
-                        colourbit -= 7;
-                        colourbit *= -1;
-                    }
-                    int colourNum = GetBit(data2, colourbit);
-                    colourNum <<= 1;
-                    colourNum |= GetBit(data1, colourbit);
+                    int colourbit = xFlip ? 7 - tilePixel : tilePixel;
+                    int colourNum = ((data2 >> colourbit) & 1) << 1 | ((data1 >> colourbit) & 1);
 
-                    // Colour 0 is always transparent for sprites
-                    if (colourNum == 0)
+                    if (colourNum == 0) continue;
+
+                    int pixel = xPos + (7 - tilePixel);
+                    if ((uint)pixel >= Width) continue;
+
+                    int bufIdx = rowBase + pixel;
+                    if ((attr & 0x80) != 0 && _bgColorIndex[bufIdx] != 0)
                         continue;
 
-                    uint colourAddress = (uint)(TestBit(attr, 4) ? 0xFF49 : 0xFF48);
-                    COLOUR col = GetColour(colourNum, colourAddress);
-                    int red = 155, green = 188, blue = 15;
-                    switch (col)
-                    {
-                        case COLOUR.LightGray: red = 139; green = 172; blue = 15; break;
-                        case COLOUR.DarkGray: red = 48; green = 98; blue = 48; break;
-                        case COLOUR.Black: red = 15; green = 56; blue = 15; break;
-                    }
-
-                    int xPix = 7 - tilePixel;
-                    int pixel = xPos + xPix;
-                    if ((scanline < 0) || (scanline > 143) || (pixel < 0) || (pixel > 159))
-                        continue;
-
-                    if (TestBit(attr, 7))
-                    {
-                        // BG priority: sprite only visible where BG colour is 0
-                        if (bgColorIndex[pixel, scanline] != 0)
-                            continue;
-                    }
-
-                    ScreenData[pixel, scanline, 0] = red;
-                    ScreenData[pixel, scanline, 1] = green;
-                    ScreenData[pixel, scanline, 2] = blue;
+                    _screenBuffer[bufIdx] = PaletteLUT[palBase + colourNum];
                 }
             }
         }

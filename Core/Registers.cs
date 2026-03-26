@@ -2,6 +2,8 @@
 // Project:     GameboyEmu
 // File:        Core/Registers.cs
 // Description: CPU register definitions (AF, BC, DE, HL, SP, PC)
+//              Optimised: sealed class, public fields, AggressiveInlining on
+//              16-bit pair accessors, fixed constructor shadowed-local bug
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root
@@ -10,150 +12,76 @@
 //              This emulator is for educational purposes only.
 // ============================================================================
 
+using System.Runtime.CompilerServices;
+
 namespace GameboyEmu.Core
 {
-    public class Registers
+    public sealed class Registers
     {
-        private byte a = 0; // accumular
-        private byte b = 0;
-        private byte c = 0;
-        private byte d = 0;
-        private byte e = 0;
-        private byte h = 0;
-        private byte l = 0;
-        private uint pc = 0; // program counter
-        private uint sp = 0; // stack pointer
-        private Flags flags = new Flags();
-
-        public Registers()
-        {
-            a = 0;
-            b = 0;
-            c = 0;
-            d = 0;
-            e = 0;
-            h = 0;
-            l = 0;
-            pc = 0;
-            sp = 0;
-            Flags flags = new Flags();
-        }
-
-        public byte A
-        {
-            get { return a; }
-            set { a = value; }
-        }
-
-        public byte B
-        {
-            get { return b; }
-            set { b = value; }
-        }
-
-        public byte C
-        {
-            get { return c; }
-            set { c = value; }
-        }
-
-        public byte D
-        {
-            get { return d; }
-            set { d = value; }
-        }
-
-        public byte E
-        {
-            get { return e; }
-            set { e = value; }
-        }
+        public byte A;
+        public byte B;
+        public byte C;
+        public byte D;
+        public byte E;
+        public byte H;
+        public byte L;
+        public uint PC;
+        public uint SP;
+        public readonly Flags Flags = new();
 
         public byte F
         {
-            get { return Flags.ToByte(); }
-            set { Flags.FromByte(value, 0xF0); }
-        }
-
-        public byte H
-        {
-            get { return h; }
-            set { h = value; }
-        }
-
-        public byte L
-        {
-            get { return l; }
-            set { l = value; }
-        }
-
-        public uint PC
-        {
-            get { return pc; }
-            set { pc = value; }
-        }
-
-        public uint SP
-        {
-            get { return sp; }
-            set { sp = value; }
-        }
-
-        public Flags Flags
-        {
-            get { return flags!; }
-            set { flags = value; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Flags.ToByte();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => Flags.FromByte(value, 0xF0);
         }
 
         public uint AF
         {
-            get
-            {
-                return (uint)a << 8 | (uint)this.F;
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (uint)A << 8 | (uint)F;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                a = (byte)((value & 0xFF00) >> 8);
-                this.F = (byte)(value & 0x00FF);
+                A = (byte)(value >> 8);
+                F = (byte)(value & 0xFF);
             }
         }
 
         public uint BC
         {
-            get
-            {
-                return (uint)b << 8 | (uint)c;
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (uint)B << 8 | C;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                b = (byte)((value & 0xFF00) >> 8);
-                c = (byte)(value & 0x00FF);
+                B = (byte)(value >> 8);
+                C = (byte)value;
             }
         }
 
         public uint DE
         {
-            get
-            {
-                return (uint)d << 8 | (uint)e;
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (uint)D << 8 | E;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                d = (byte)((value & 0xFF00) >> 8);
-                e = (byte)(value & 0x00FF);
+                D = (byte)(value >> 8);
+                E = (byte)value;
             }
         }
 
         public uint HL
         {
-            get
-            {
-                return (uint)h << 8 | (uint)l;
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (uint)H << 8 | L;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                h = (byte)((value & 0xFF00) >> 8);
-                l = (byte)(value & 0x00FF);
+                H = (byte)(value >> 8);
+                L = (byte)value;
             }
         }
     }
