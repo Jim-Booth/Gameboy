@@ -206,6 +206,30 @@ namespace GameboyEmu.Core
         [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
         public static extern void SDL_Delay(uint ms);
 
+        // Overload that accepts an explicit destination rectangle
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SDL_RenderCopy")]
+        public static extern int SDL_RenderCopy(IntPtr renderer, IntPtr texture, IntPtr srcrect, ref SDL_Rect dstrect);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_Rect
+        {
+            public int x, y, w, h;
+        }
+
+        // --- Surface / BMP loading ---
+
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public static extern IntPtr SDL_RWFromFile(string file, string mode);
+
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr SDL_LoadBMP_RW(IntPtr src, int freesrc);
+
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr SDL_CreateTextureFromSurface(IntPtr renderer, IntPtr surface);
+
+        [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SDL_FreeSurface(IntPtr surface);
+
         // --- Audio structs ---
 
         [StructLayout(LayoutKind.Sequential)]

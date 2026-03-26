@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -37,11 +38,16 @@ namespace GameboyEmu.Core
     {
         public const int ScreenWidth = 160;
         public const int ScreenHeight = 144;
-        public const int Scale = 4;
+        public const int Scale = 2;
+
+        // Position of the game viewport within the larger window
+        private const int GameX = 154;
+        private const int GameY = 144;
 
         private IntPtr _window;
         private IntPtr _renderer;
         private IntPtr _texture;
+        private IntPtr _bgTexture = IntPtr.Zero;
         private bool _disposed;
 
         public bool IsOpen { get; private set; }
@@ -61,8 +67,8 @@ namespace GameboyEmu.Core
                 "GameBoy DMG Emulator",
                 SDL.SDL_WINDOWPOS_CENTERED,
                 SDL.SDL_WINDOWPOS_CENTERED,
-                ScreenWidth * Scale,
-                ScreenHeight * Scale,
+                630,
+                1015,
                 SDL.SDL_WINDOW_SHOWN | SDL.SDL_WINDOW_RESIZABLE);
 
             if (_window == IntPtr.Zero)
@@ -101,7 +107,39 @@ namespace GameboyEmu.Core
             }
 
             SDL.SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+            LoadBackground();
             IsOpen = true;
+        }
+
+        private void LoadBackground()
+        {
+            // Search next to the executable first, then the working directory
+            string bgPath = Path.Combine(AppContext.BaseDirectory, "background.bmp");
+            if (!File.Exists(bgPath))
+                bgPath = "background.bmp";
+            if (!File.Exists(bgPath))
+            {
+                Console.WriteLine("[Display] background.bmp not found — window background will be black.");
+                return;
+            }
+
+            IntPtr rw = SDL.SDL_RWFromFile(bgPath, "rb");
+            if (rw == IntPtr.Zero) return;
+
+            IntPtr surface = SDL.SDL_LoadBMP_RW(rw, 1); // 1 = free RWops after load
+            if (surface == IntPtr.Zero)
+            {
+                Console.WriteLine($"[Display] Failed to load background.bmp: {Marshal.PtrToStringAnsi(SDL.SDL_GetError())}");
+                return;
+            }
+
+            _bgTexture = SDL.SDL_CreateTextureFromSurface(_renderer, surface);
+            SDL.SDL_FreeSurface(surface);
+
+            if (_bgTexture == IntPtr.Zero)
+                Console.WriteLine($"[Display] Failed to create background texture: {Marshal.PtrToStringAnsi(SDL.SDL_GetError())}");
+            else
+                Console.WriteLine($"[Display] Background loaded: {bgPath}");
         }
 
         /// <summary>
@@ -121,8 +159,11 @@ namespace GameboyEmu.Core
                 handle.Free();
             }
 
+            var dst = new SDL.SDL_Rect { x = GameX, y = GameY, w = ScreenWidth * Scale, h = ScreenHeight * Scale };
             SDL.SDL_RenderClear(_renderer);
-            SDL.SDL_RenderCopy(_renderer, _texture, IntPtr.Zero, IntPtr.Zero);
+            if (_bgTexture != IntPtr.Zero)
+                SDL.SDL_RenderCopy(_renderer, _bgTexture, IntPtr.Zero, IntPtr.Zero); // stretch to full window
+            SDL.SDL_RenderCopy(_renderer, _texture, IntPtr.Zero, ref dst);
             SDL.SDL_RenderPresent(_renderer);
         }
 
@@ -319,8 +360,11 @@ namespace GameboyEmu.Core
                 }
                 finally { pin.Free(); }
 
+                var dst = new SDL.SDL_Rect { x = GameX, y = GameY, w = ScreenWidth * Scale, h = ScreenHeight * Scale };
                 SDL.SDL_RenderClear(_renderer);
-                SDL.SDL_RenderCopy(_renderer, _menuTexture, IntPtr.Zero, IntPtr.Zero);
+                if (_bgTexture != IntPtr.Zero)
+                    SDL.SDL_RenderCopy(_renderer, _bgTexture, IntPtr.Zero, IntPtr.Zero); // stretch to full window
+                SDL.SDL_RenderCopy(_renderer, _menuTexture, IntPtr.Zero, ref dst);
                 SDL.SDL_RenderPresent(_renderer);
 
                 SDL.SDL_Delay(16); // ~60 fps
@@ -374,6 +418,7 @@ namespace GameboyEmu.Core
         {
             if (!_disposed)
             {
+                if (_bgTexture != IntPtr.Zero) SDL.SDL_DestroyTexture(_bgTexture);
                 if (_menuTexture != IntPtr.Zero) SDL.SDL_DestroyTexture(_menuTexture);
                 if (_texture != IntPtr.Zero) SDL.SDL_DestroyTexture(_texture);
                 if (_renderer != IntPtr.Zero) SDL.SDL_DestroyRenderer(_renderer);
