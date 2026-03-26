@@ -42,7 +42,7 @@ namespace GameboyEmu.Core
 
         // Position of the game viewport within the larger window
         private const int GameX = 154;
-        private const int GameY = 144;
+        private const int GameY = 145;
 
         private IntPtr _window;
         private IntPtr _renderer;
@@ -69,7 +69,7 @@ namespace GameboyEmu.Core
                 SDL.SDL_WINDOWPOS_CENTERED,
                 630,
                 1015,
-                SDL.SDL_WINDOW_SHOWN | SDL.SDL_WINDOW_RESIZABLE);
+                SDL.SDL_WINDOW_SHOWN);
 
             if (_window == IntPtr.Zero)
             {
