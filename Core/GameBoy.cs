@@ -14,13 +14,14 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 #nullable enable
 
 namespace GameboyEmu.Core
 {
-    public class GameBoy
+    public sealed class GameBoy
     {
         private const int CpuClockRate = 4194304;
         private const int CyclesPerFrame = 456 * 154;
@@ -232,6 +233,7 @@ namespace GameboyEmu.Core
             return true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PresentCompletedFrame()
         {
             if (!pPU.ConsumeFrameReady())
@@ -280,6 +282,7 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void RequestInterrupt(int id)
         {
             mMU!.IF = SetBit(mMU!.IF, id, 1);
@@ -301,17 +304,19 @@ namespace GameboyEmu.Core
             cPU!.UpdateIME();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TestBit(byte data, int bitPos)
         {
             return (data & (1 << bitPos)) != 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte SetBit(int register, int bitIndex, int newBitValue)
         {
             if (newBitValue == 1)
-                return (byte)(register |= (1 << bitIndex));
+                return (byte)(register | (1 << bitIndex));
             else
-                return (byte)(register &= ~(1 << bitIndex));
+                return (byte)(register & ~(1 << bitIndex));
         }
 
         public void DMATransfer(byte value)

@@ -11,7 +11,6 @@
 // ============================================================================
 
 using System;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace GameboyEmu.Core
@@ -110,8 +109,8 @@ namespace GameboyEmu.Core
         // --- Scancode values for key mapping ---
         public const int SDL_SCANCODE_RETURN = 40;   // Start
         public const int SDL_SCANCODE_SPACE = 44;   // Select
-        public const int SDL_SCANCODE_Z = 29;   // B
-        public const int SDL_SCANCODE_X = 27;   // A
+        public const int SDL_SCANCODE_Z = 29;   // A
+        public const int SDL_SCANCODE_X = 27;   // B
         public const int SDL_SCANCODE_UP = 82;
         public const int SDL_SCANCODE_DOWN = 81;
         public const int SDL_SCANCODE_LEFT = 80;

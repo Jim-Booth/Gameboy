@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 #nullable enable
@@ -32,7 +33,7 @@ namespace GameboyEmu.Core
     ///   Space             -> Select
     ///   Escape            -> Reset (return to ROM menu)
     /// </summary>
-    public class SDLDisplay : IDisposable
+    public sealed class SDLDisplay : IDisposable
     {
         public const int ScreenWidth = 160;
         public const int ScreenHeight = 144;
@@ -151,6 +152,7 @@ namespace GameboyEmu.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void HandleKeyDown(int scancode, GameBoy gb)
         {
             if (scancode == SDL.SDL_SCANCODE_ESCAPE)
@@ -164,6 +166,7 @@ namespace GameboyEmu.Core
                 gb.KeypadKeyPressed(key);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void HandleKeyUp(int scancode, GameBoy gb)
         {
             int key = MapKey(scancode);
@@ -175,6 +178,7 @@ namespace GameboyEmu.Core
         /// Maps SDL scancodes to Game Boy keypad bit indices.
         /// Game Boy bits: 0=Right, 1=Left, 2=Up, 3=Down, 4=A, 5=B, 6=Select, 7=Start
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int MapKey(int scancode) => scancode switch
         {
             SDL.SDL_SCANCODE_RIGHT or SDL.SDL_SCANCODE_D => 0,
