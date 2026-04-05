@@ -36,9 +36,12 @@ namespace GameboyEmu
 
             // --- Game session loop: returns to menu on reset ---
             bool keepRunning = true;
+            int lastMenuSelected = 0;
+            int lastMenuScrollOffset = 0;
             while (keepRunning && display.IsOpen)
             {
                 string? romPath = null;
+                bool skipBootForThisLaunch = false;
 
                 if (args.Length > 0 && keepRunning)
                 {
@@ -66,9 +69,17 @@ namespace GameboyEmu
                                 .ToList();
 
                             Console.WriteLine($"Found {romFiles.Count} ROM(s)");
-                            Console.WriteLine("Use Up/Down to select, Enter to launch, Esc to quit.");
+                            Console.WriteLine("Use Up/Down to select, Enter to launch, Ctrl+Enter to launch without boot ROM, Esc to quit.");
 
-                            romPath = display.ShowRomMenu(romFiles, romNames);
+                            var menuSelection = display.ShowRomMenu(
+                                romFiles,
+                                romNames,
+                                lastMenuSelected,
+                                lastMenuScrollOffset);
+                            romPath = menuSelection.RomPath;
+                            skipBootForThisLaunch = menuSelection.SkipBootRom;
+                            lastMenuSelected = menuSelection.SelectedIndex;
+                            lastMenuScrollOffset = menuSelection.ScrollOffset;
 
                             if (romPath == null)
                             {
@@ -87,7 +98,7 @@ namespace GameboyEmu
                 if (romPath != null)
                 {
                     int romSize = (int)new FileInfo(romPath).Length;
-                    gb.LoadCartridge(romPath, romSize, noBoot);
+                    gb.LoadCartridge(romPath, romSize, noBoot || skipBootForThisLaunch);
                     Console.WriteLine($"Loaded ROM: {romPath} ({romSize} bytes)");
                 }
                 else

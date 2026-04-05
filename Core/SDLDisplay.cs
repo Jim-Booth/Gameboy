@@ -322,11 +322,58 @@ namespace GameboyEmu.Core
         private const uint ColSelTxt = 0xFF8BAC0F; // bright green   (selected text)
         private const uint ColTitle = 0xFF8BAC0F; // title colour
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool TryGetMenuJumpChar(int keySym, out char jumpChar)
+        {
+            if (keySym >= 'a' && keySym <= 'z')
+            {
+                jumpChar = (char)(keySym - 32); // to uppercase ASCII
+                return true;
+            }
+
+            if (keySym >= 'A' && keySym <= 'Z')
+            {
+                jumpChar = (char)keySym;
+                return true;
+            }
+
+            if (keySym >= '0' && keySym <= '9')
+            {
+                jumpChar = (char)keySym;
+                return true;
+            }
+
+            jumpChar = '\0';
+            return false;
+        }
+
+        private static int FindFirstRomStartingWith(List<string> romNames, char jumpChar)
+        {
+            for (int i = 0; i < romNames.Count; i++)
+            {
+                string name = romNames[i];
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                string trimmed = name.TrimStart();
+                if (trimmed.Length == 0) continue;
+
+                if (char.ToUpperInvariant(trimmed[0]) == jumpChar)
+                    return i;
+            }
+
+            return -1;
+        }
+
         /// <summary>
         /// Shows a ROM selection menu rendered inside the SDL window.
-        /// Returns the selected ROM path, or null if the user closed the window.
+        /// Returns the selected ROM path, whether to skip the boot ROM, and
+        /// current menu position. If the user closed the window: (null, false, selected, scroll).
         /// </summary>
-        public string? ShowRomMenu(List<string> romPaths, List<string> romNames)
+        public (string? RomPath, bool SkipBootRom, int SelectedIndex, int ScrollOffset) ShowRomMenu(
+            List<string> romPaths,
+            List<string> romNames,
+            int initialSelected = 0,
+            int initialScrollOffset = 0)
         {
             if (_menuTexture == IntPtr.Zero)
             {
@@ -337,12 +384,19 @@ namespace GameboyEmu.Core
                     ScreenWidth, ScreenHeight);
             }
 
-            int selected = 0;
-            int scrollOffset = 0;
             const int maxVisible = 10; // max ROM entries visible at once
             const int itemHeight = 10; // pixels per item (font is 7px + 3px gap)
             const int titleY = 4;
             const int listY = 25;
+            const int maxNameChars = 21;
+            const int marqueeStartDelayFrames = 60; // ~1 second at ~60 fps
+            const int marqueeFramesPerStep = 5;
+            int selected = Math.Clamp(initialSelected, 0, Math.Max(romNames.Count - 1, 0));
+            int scrollOffset = Math.Clamp(initialScrollOffset, 0, Math.Max(romNames.Count - maxVisible, 0));
+            int marqueeSelected = selected;
+            int marqueeOffset = 0;
+            int marqueeDelayCounter = 0;
+            int marqueeFrameCounter = 0;
 
             while (IsOpen)
             {
@@ -353,15 +407,15 @@ namespace GameboyEmu.Core
                     {
                         case SDL.SDL_QUIT:
                             IsOpen = false;
-                            return null;
+                            return (null, false, selected, scrollOffset);
 
                         case SDL.SDL_KEYDOWN:
-                            if (e.key.repeat != 0) break;
                             int sc = e.key.keysym.scancode;
                             if (sc == SDL.SDL_SCANCODE_ESCAPE)
                             {
+                                if (e.key.repeat != 0) break;
                                 IsOpen = false;
-                                return null;
+                                return (null, false, selected, scrollOffset);
                             }
                             if (sc == SDL.SDL_SCANCODE_UP)
                             {
@@ -374,7 +428,18 @@ namespace GameboyEmu.Core
                                 if (selected >= romNames.Count) selected = 0;
                             }
                             if (sc == SDL.SDL_SCANCODE_RETURN)
-                                return romPaths[selected];
+                            {
+                                if (e.key.repeat != 0) break;
+                                bool ctrlHeld = (e.key.keysym.mod & SDL.KMOD_CTRL) != 0;
+                                return (romPaths[selected], ctrlHeld, selected, scrollOffset);
+                            }
+
+                            if (e.key.repeat == 0 && TryGetMenuJumpChar(e.key.keysym.sym, out char jumpChar))
+                            {
+                                int idx = FindFirstRomStartingWith(romNames, jumpChar);
+                                if (idx >= 0)
+                                    selected = idx;
+                            }
                             break;
                     }
                 }
@@ -383,10 +448,20 @@ namespace GameboyEmu.Core
                 if (selected < scrollOffset) scrollOffset = selected;
                 if (selected >= scrollOffset + maxVisible) scrollOffset = selected - maxVisible + 1;
 
+                // Reset marquee when selection changes so each row starts from the first 21 chars
+                if (selected != marqueeSelected)
+                {
+                    marqueeSelected = selected;
+                    marqueeOffset = 0;
+                    marqueeDelayCounter = 0;
+                    marqueeFrameCounter = 0;
+                }
+
                 // --- Draw menu to pixel buffer ---
                 Array.Fill(_menuPixBuf, ColBg);
 
-                DrawString("SELECT ROM", 30, titleY, ColTitle, 1);
+                string title = $"SELECT ROM {selected + 1}/{romNames.Count}";
+                DrawString(title, 12, titleY, ColTitle, 1);
 
                 // Thin separator line under the title
                 for (int x = 8; x < ScreenWidth - 8; x++)
@@ -409,8 +484,42 @@ namespace GameboyEmu.Core
                                     _menuPixBuf[py * ScreenWidth + px] = ColSel;
                     }
 
-                    string name = romNames[idx];
-                    if (name.Length > 20) name = name[..8] + "..";
+                    string fullName = romNames[idx];
+                    string name;
+
+                    if (fullName.Length > maxNameChars)
+                    {
+                        if (isSel)
+                        {
+                            int maxOffset = fullName.Length - maxNameChars;
+                            if (marqueeOffset < maxOffset)
+                            {
+                                if (marqueeDelayCounter < marqueeStartDelayFrames)
+                                {
+                                    marqueeDelayCounter++;
+                                }
+                                else
+                                {
+                                    marqueeFrameCounter++;
+                                    if (marqueeFrameCounter >= marqueeFramesPerStep)
+                                    {
+                                        marqueeFrameCounter = 0;
+                                        marqueeOffset++;
+                                    }
+                                }
+                            }
+
+                            name = fullName.Substring(marqueeOffset, maxNameChars);
+                        }
+                        else
+                        {
+                            name = fullName[..maxNameChars];
+                        }
+                    }
+                    else
+                    {
+                        name = fullName;
+                    }
                     uint col = isSel ? ColSelTxt : ColText;
 
                     // Arrow indicator for selected item
@@ -443,7 +552,7 @@ namespace GameboyEmu.Core
                 SDL.SDL_Delay(16); // ~60 fps
             }
 
-            return null;
+            return (null, false, selected, scrollOffset);
         }
 
         // =============================================================

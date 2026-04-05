@@ -48,6 +48,11 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 - Built-in ROM selection menu with a 5×7 pixel bitmap font
 - Automatic ROM scanning from the `ROMs/` directory
 - Menu scrolling (up to 10 visible entries)
+- Hold Up/Down to repeat navigation while browsing ROMs
+- Press A-Z or 0-9 to jump to the first ROM starting with that character
+- Press Ctrl+Enter in the ROM menu to launch a game without the boot ROM
+- ROM menu position is preserved when returning from a game
+- Long highlighted ROM names (>21 chars) marquee after a short delay, then reset when no longer highlighted
 
 ## Controls
 
@@ -59,6 +64,16 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 | Enter | Start |
 | Space | Select |
 | Escape | Reset (return to ROM menu) |
+
+### ROM Menu Controls
+
+| Key | Action |
+|-----|--------|
+| Up / Down | Move selection (hold to repeat) |
+| A-Z / 0-9 | Jump to first ROM beginning with that character |
+| Enter | Launch highlighted ROM |
+| Ctrl+Enter | Launch highlighted ROM without boot ROM |
+| Escape | Quit emulator |
 
 > **Tip:** The WASD alternate keys are useful for games like Pinball Dreams where the arrow keys may feel less natural.
 

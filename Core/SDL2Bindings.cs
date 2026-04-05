@@ -122,6 +122,11 @@ namespace GameboyEmu.Core
         public const int SDL_SCANCODE_M = 16;
         public const int SDL_SCANCODE_N = 17;
 
+        // --- Key modifier masks ---
+        public const ushort KMOD_LCTRL = 0x0040;
+        public const ushort KMOD_RCTRL = 0x0080;
+        public const ushort KMOD_CTRL = KMOD_LCTRL | KMOD_RCTRL;
+
         // --- Structs ---
 
         [StructLayout(LayoutKind.Sequential)]
