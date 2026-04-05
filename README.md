@@ -2,6 +2,8 @@
 
 A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross-platform graphics, audio, and input.
 
+> **Note:** This is a DMG emulator. CGB-only ROMs are detected from the cartridge header and skipped.
+
 ## Features
 
 ### CPU
@@ -10,7 +12,7 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 - HALT and HALT bug emulation
 
 ### PPU (Pixel Processing Unit)
-- Scanline-based renderer at native 160×144 resolution, scaled 4× for display
+- Scanline-based renderer at native 160×144 resolution, presented at 2× scale in the game viewport
 - Background and Window layer rendering with per-pixel scrolling
 - Sprite rendering with 8×8 and 8×16 modes
 - LCDC bit 0 (BG enable) support
@@ -45,6 +47,7 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 
 ### Display & UI
 - Cross-platform SDL2 window with nearest-neighbour scaling
+- Native 160×144 framebuffer rendered at 2× scale in the game viewport
 - Built-in ROM selection menu with a 5×7 pixel bitmap font
 - Automatic ROM scanning from the `ROMs/` directory
 - Menu scrolling (up to 10 visible entries)
@@ -53,6 +56,18 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 - Press Ctrl+Enter in the ROM menu to launch a game without the boot ROM
 - ROM menu position is preserved when returning from a game
 - Long highlighted ROM names (>21 chars) marquee after a short delay, then reset when no longer highlighted
+
+### Compatibility Notes
+- DMG-focused emulation: best compatibility is with original Game Boy (non-color) titles.
+- CGB-only ROMs (header flag `0xC0`) are skipped at launch.
+- CGB-compatible ROMs (header flag `0x80`) may boot but are not guaranteed to behave correctly in DMG mode.
+
+## Known Limitations
+
+- This project currently targets DMG hardware behavior, not full Game Boy Color (CGB) hardware features.
+- Timing-sensitive edge cases may still exist in specific test ROMs and in a small number of game scenes.
+- Audio emulation is functional for most games, but some hardware-quirk-level APU behavior is still being refined.
+- SDL2 must be available on the host system at runtime; missing SDL2 libraries will prevent startup.
 
 ## Controls
 
@@ -128,4 +143,4 @@ Game Boy is a registered trademark of Nintendo Co., Ltd. This project is not aff
 
 ## License
 
-This project is for educational purposes.
+MIT License. See [LICENSE](LICENSE).
