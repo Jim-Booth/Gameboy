@@ -1,8 +1,8 @@
 ﻿// ============================================================================
 // Project:     GameboyEmu
 // File:        Core/GameBoy.cs
-// Description: Main emulator orchestrator — ties CPU, MMU, PPU, and APU
-//              together and runs the emulation loop
+// Description: System orchestrator - coordinates CPU, MMU, PPU, and APU,
+//              and drives timers, DMA, interrupts, and frame pacing
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

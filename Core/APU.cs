@@ -1,10 +1,8 @@
 // ============================================================================
 // Project:     GameboyEmu
 // File:        Core/APU.cs
-// Description: Audio Processing Unit — 4 sound channels, frame sequencer,
-//              stereo mixing, and SDL audio output
-//              Optimised: sealed class, AggressiveInlining on channel hot paths,
-//              flat duty cycle table replacing jagged array
+// Description: DMG Audio Processing Unit - 4 channels, frame sequencer,
+//              register-accurate mixing/panning, and SDL audio output
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

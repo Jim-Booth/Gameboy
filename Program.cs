@@ -1,7 +1,8 @@
 // ============================================================================
 // Project:     GameboyEmu
 // File:        Program.cs
-// Description: Entry point — ROM scanning, menu display, and emulation loop
+// Description: Application entry point - SDL startup, ROM menu/launch flow,
+//              DMG-only ROM guard, and game session lifecycle loop
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

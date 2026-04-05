@@ -1,9 +1,8 @@
 ﻿// ============================================================================
 // Project:     GameboyEmu
 // File:        Core/Flags.cs
-// Description: CPU flag helpers (Zero, Subtract, HalfCarry, Carry)
-//              Optimised: AggressiveInlining, branchless ToByte, separate
-//              carry/no-carry overloads to eliminate optional-param branching
+// Description: CPU flag register helpers (Z, N, H, C) for pack/unpack and
+//              arithmetic flag update semantics
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

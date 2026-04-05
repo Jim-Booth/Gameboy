@@ -1,9 +1,8 @@
 ﻿// ============================================================================
 // Project:     GameboyEmu
 // File:        Core/Registers.cs
-// Description: CPU register definitions (AF, BC, DE, HL, SP, PC)
-//              Optimised: sealed class, public fields, AggressiveInlining on
-//              16-bit pair accessors, fixed constructor shadowed-local bug
+// Description: CPU register file definitions and 8-bit/16-bit pair accessors
+//              for AF, BC, DE, HL, SP, and PC
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

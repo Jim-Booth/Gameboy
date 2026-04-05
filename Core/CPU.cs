@@ -1,11 +1,8 @@
 ﻿// ============================================================================
 // Project:     GameboyEmu
 // File:        Core/CPU.cs
-// Description: LR35902 CPU — full instruction set, CB prefixed opcodes,
-//              interrupt handling, and HALT emulation
-//              Optimised: sealed class, AggressiveInlining on helpers,
-//              separate carry/no-carry overloads, eliminated optional params,
-//              reduced redundant memory reads, branchless SetBit
+// Description: LR35902 CPU core - full opcode set, CB-prefixed operations,
+//              IME/HALT behavior, interrupt servicing, and CPU-timed accesses
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

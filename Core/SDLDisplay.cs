@@ -1,8 +1,8 @@
 // ============================================================================
 // Project:     GameboyEmu
 // File:        Core/SDLDisplay.cs
-// Description: SDL2 display window, frame rendering, keyboard input,
-//              ROM selection menu, and built-in 5×7 bitmap font
+// Description: SDL2 display frontend - frame presentation, keyboard input,
+//              ROM selection menu, and built-in bitmap menu font rendering
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

@@ -1,9 +1,8 @@
 // ============================================================================
 // Project:     GameboyEmu
 // File:        Core/PPU.cs
-// Description: Pixel Processing Unit — scanline renderer for background,
-//              window, and sprite layers (optimised: flat buffers, palette
-//              LUT, zero per-scanline allocations)
+// Description: DMG Pixel Processing Unit - scanline renderer for background,
+//              window and sprites, with STAT/LY timing and interrupts
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

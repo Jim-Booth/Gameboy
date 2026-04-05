@@ -1,9 +1,8 @@
 ﻿// ============================================================================
 // Project:     GameboyEmu
 // File:        Core/MMU.cs
-// Description: Memory Management Unit — 64 KB address space with MBC1/MBC2/
-//              MBC3/MBC5 cartridge banking, ROM/RAM mapping, and I/O routing
-//              Optimised: removed unused imports, timer speed lookup table
+// Description: Memory bus and cartridge controller - 64 KB address space,
+//              MBC1/MBC2/MBC3/MBC5 banking, RTC, I/O routing, and save RAM
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root

@@ -1,7 +1,8 @@
 // ============================================================================
 // Project:     GameboyEmu
 // File:        Core/SDL2Bindings.cs
-// Description: SDL2 P/Invoke declarations for video, audio, and input
+// Description: SDL2 interop bindings and native library resolution helpers
+//              for video, audio, events, and texture/window APIs
 // Author:      James Booth
 // Created:     2024
 // License:     MIT License - See LICENSE file in the project root
