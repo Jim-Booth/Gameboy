@@ -196,7 +196,10 @@ namespace GameboyEmu.Core
                     cycles = (mMU!.IF & mMU.IE & 0x1F) != 0 ? 0 : 4;
                 }
                 else
-                    cycles = cPU.Execute(mMU!.ReadByteFromMemory(cPU!.registers.PC++));
+                {
+                    byte opcode = mMU!.ReadByteFromMemory(cPU!.registers.PC++);
+                    cycles = cPU.Execute(opcode);
+                }
 
                 if (cPU.ConsumeInstructionHandledInternally())
                     cycles = 0;

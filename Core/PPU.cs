@@ -113,12 +113,12 @@ namespace GameboyEmu.Core
 
             if ((mem[0xFF40] & 0x80) == 0)
             {
-                // LCD off: reset scanline state, stay in mode 1 (VBlank)
+                // LCD off: reset scanline state and report mode 0.
                 ScanLineCounter = CyclesPerScanline;
                 mem[0xFF44] = 0;
                 scanLineRendered = false;
                 windowLineCounter = 0;
-                mem[0xFF41] = (byte)((mem[0xFF41] & 0xFC) | 0x01);
+                mem[0xFF41] = (byte)(mem[0xFF41] & 0xFC);
                 _lcdEnableElapsed = -1;
                 return;
             }
