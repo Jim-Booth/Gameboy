@@ -144,3 +144,16 @@ Game Boy is a registered trademark of Nintendo Co., Ltd. This project is not aff
 ## License
 
 MIT License. See [LICENSE](LICENSE).
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="ss1.png" alt="Screenshot 1" /></td>
+    <td><img src="ss2.png" alt="Screenshot 2" /></td>
+  </tr>
+  <tr>
+    <td><img src="ss3.png" alt="Screenshot 3" /></td>
+    <td><img src="ss4.png" alt="Screenshot 4" /></td>
+  </tr>
+</table>
