@@ -115,8 +115,9 @@ namespace GameboyEmu.Core
         public void PostBootROMCopy()
         {
             Array.Copy(tempROM, 0, mMU!.Memory, 0, tempROM.Length); // replace kernal at 0x00 with temp memory
-            InitialiseGameboyForCartridge(0x100);
+            cPU!.registers.PC = 0x100;
             mMU!.InitROMBanks();
+            _useBootROM = false;
         }
 
         private void InitialiseGameboyForCartridge(uint startPC)
