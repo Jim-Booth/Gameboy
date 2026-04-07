@@ -66,8 +66,22 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 
 - This project currently targets DMG hardware behavior, not full Game Boy Color (CGB) hardware features.
 - Timing-sensitive edge cases may still exist in specific test ROMs and in a small number of game scenes.
-- Audio emulation is functional for most games, but some hardware-quirk-level APU behavior is still being refined.
 - SDL2 must be available on the host system at runtime; missing SDL2 libraries will prevent startup.
+
+## Tests
+
+### Blargg Tests
+
+| ROM | Pass/Fail | Notes |
+|-----|-----------|-------|
+| `cpu_instrs` | Pass | Core CPU instruction behavior passes. |
+| `instr_timing` | Pass | Instruction timing checks pass in DMG mode. |
+| `mem_timing` | Pass | Memory timing checks pass. |
+| `mem_timing-2` | Pass | Extended memory timing checks pass. |
+| `oam_bug` | Pass | OAM corruption behavior checks pass. |
+| `halt_bug` | Pass | HALT bug behavior checks pass. |
+| `dmg_sound` | Fail | Sub-cycle APU timing behavior is not yet fully matched. |
+| `interrupt_time` | Fail (expected) | This ROM is CGB-only and is skipped by the DMG guard. |
 
 ## Controls
 
