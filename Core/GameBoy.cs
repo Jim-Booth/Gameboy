@@ -89,8 +89,9 @@ namespace GameboyEmu.Core
         // Executes load cartridge.
         public void LoadCartridge(string path, int size, bool skipBootROM = false)
         {
-            Array.Copy(File.ReadAllBytes(path), 0, mMU!.Cartridge, 0, size);
-            Array.Copy(mMU!.Cartridge, 0, mMU!.Memory, 0, 0x8000);
+            byte[] romBytes = File.ReadAllBytes(path);
+            mMU!.Cartridge = romBytes;
+            Array.Copy(mMU.Cartridge, 0, mMU.Memory, 0, Math.Min(0x8000, romBytes.Length));
             mMU!.CurrentROMBank = 1;
             mMU!.SetSavePath(path);
 

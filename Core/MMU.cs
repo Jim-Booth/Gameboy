@@ -27,7 +27,7 @@ namespace GameboyEmu.Core
         // Gets or sets memory.
         public byte[] Memory { get; set; } = new byte[0x10000];
         // Gets or sets cartridge.
-        public byte[] Cartridge { get; set; } = new byte[0x200000];
+        public byte[] Cartridge { get; set; } = Array.Empty<byte>();
 
         public MBCType MapperType = MBCType.None;
         public byte CurrentROMBank = 1;
@@ -357,6 +357,10 @@ namespace GameboyEmu.Core
                     effectiveBank = CurrentROMBank;
 
                 uint romAddr = (uint)((addr - 0x4000) + effectiveBank * 0x4000);
+                // Real cartridges mirror ROM when the selected bank exceeds
+                // physical ROM size (unconnected address lines).
+                if (Cartridge.Length > 0)
+                    romAddr %= (uint)Cartridge.Length;
                 if (romAddr < Cartridge.Length)
                     return Cartridge[romAddr];
                 return 0xFF;
