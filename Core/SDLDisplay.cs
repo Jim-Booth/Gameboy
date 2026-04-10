@@ -157,7 +157,6 @@ namespace GameboyEmu.Core
                         byte b = (byte)(180 * (1.0 - t));
                         pixels[py * LedTexSize + px] = (uint)(0xFF000000 | (0xFF << 16) | (g << 8) | b);
                     }
-                    // Executes if.
                     else if (dist <= LedRadius + LedGlow)
                     {
                         double t = (dist - LedRadius) / LedGlow;

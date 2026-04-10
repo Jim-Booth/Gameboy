@@ -249,7 +249,6 @@ namespace GameboyEmu.Core
                     status = (byte)((status & 0xFC) | 0x02);
                     reqInt = (status & 0x20) != 0;
                 }
-                // Executes if.
                 else if (ScanLineCounter >= mode3bounds)
                 {
                     mode = 3;

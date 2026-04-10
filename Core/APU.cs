@@ -244,7 +244,6 @@ namespace GameboyEmu.Core
             {
                 bool next = (value & 0x80) != 0;
                 if (!next && _powered) PowerOff();
-                // Executes if.
                 else if (next && !_powered)
                 {
                     _fsStep = 0;

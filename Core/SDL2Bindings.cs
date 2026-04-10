@@ -44,7 +44,6 @@ namespace GameboyEmu.Core
                         if (NativeLibrary.TryLoad(p, out handle))
                             return handle;
                 }
-                // Executes if.
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
                     string[] linuxPaths =

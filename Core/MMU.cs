@@ -86,7 +86,6 @@ namespace GameboyEmu.Core
                 }
             }
 
-            // Executes if.
             else if (addr >= 0x2000 && addr <= 0x3FFF)
             {
                 switch (MapperType)
@@ -121,7 +120,6 @@ namespace GameboyEmu.Core
                 }
             }
 
-            // Executes if.
             else if (addr >= 0x4000 && addr <= 0x5FFF)
             {
                 switch (MapperType)
@@ -146,7 +144,6 @@ namespace GameboyEmu.Core
                             CurrentRAMBank = value;
                             _rtcMapped = false;
                         }
-                        // Executes if.
                         else if (value >= 0x08 && value <= 0x0C)
                         {
                             _rtcMapped = true;
@@ -159,7 +156,6 @@ namespace GameboyEmu.Core
                 }
             }
 
-            // Executes if.
             else if (addr >= 0x6000 && addr <= 0x7FFF)
             {
                 switch (MapperType)
@@ -190,7 +186,6 @@ namespace GameboyEmu.Core
                 }
             }
 
-            // Executes if.
             else if (addr >= 0xA000 && addr < 0xC000)
             {
                 if (EnableRAM)
@@ -246,7 +241,6 @@ namespace GameboyEmu.Core
                 }
             }
 
-            // Executes if.
             else if (addr >= 0x8000 && addr <= 0x9FFF)
             {
                 if ((Memory[0xFF40] & 0x80) != 0 && gameboy.pPU != null && gameboy.pPU.IsMode3)
@@ -255,7 +249,6 @@ namespace GameboyEmu.Core
                 Memory[addr] = value;
             }
 
-            // Executes if.
             else if (addr >= 0xFE00 && addr <= 0xFE9F)
             {
                 if (gameboy.IsDmaActive || ((Memory[0xFF40] & 0x80) != 0 && gameboy.pPU != null && gameboy.pPU.IsOamBlocked))
@@ -264,74 +257,62 @@ namespace GameboyEmu.Core
                 Memory[addr] = value;
             }
 
-            // Executes if.
             else if ((addr >= 0xC000) && (addr <= 0xDFFF))
             {
                 Memory[addr] = value;
             }
 
-            // Executes if.
             else if (addr >= 0xE000 && addr < 0xFE00)
             {
                 Memory[addr] = value;
                 Memory[addr - 0x2000] = value;
             }
 
-            // Executes if.
             else if (addr >= 0xFEA0 && addr < 0xFF00)
             {
                 // Unusable OAM area: writes are ignored.
             }
 
-            // Executes if.
             else if (0xFF04 == addr)
             {
                 gameboy.WriteDiv();
             }
 
-            // Executes if.
             else if (addr == 0xFF05)
             {
                 gameboy.WriteTima(value);
             }
 
-            // Executes if.
             else if (addr == 0xFF06)
             {
                 gameboy.WriteTma(value);
             }
 
-            // Executes if.
             else if (addr == 0xFF07)
             {
                 gameboy.WriteTac(value);
             }
 
-            // Executes if.
             else if (addr == 0xFF0F)
             {
                 IF = value;
             }
 
-            // Executes if.
             else if (addr == 0xFF01)
             {
                 Memory[addr] = value;
             }
 
-            // Executes if.
             else if (addr == 0xFF02)
             {
                 Memory[addr] = value;
             }
 
-            // Executes if.
             else if (addr >= 0xFF10 && addr <= 0xFF3F)
             {
                 Apu.WriteRegister(addr, value);
             }
 
-            // Executes if.
             else if (addr == 0xFF40)
             {
                 byte oldValue = Memory[0xFF40];
@@ -339,29 +320,24 @@ namespace GameboyEmu.Core
                 gameboy.OnLcdcWrite(oldValue, value);
             }
 
-            // Executes if.
             else if (addr == 0xFF41)
             {
                 // STAT: only bits 3-6 are writable; mode and coincidence are read-only.
                 Memory[addr] = (byte)((Memory[addr] & 0x07) | (value & 0x78));
             }
 
-            // Executes if.
             else if (addr == 0xFF44)
             {
                 Memory[addr] = 0;
             }
 
-            // Executes if.
             else if (addr == 0xFF46)
                 gameboy.StartDmaTransfer(value);
 
-            // Executes if.
             else if ((addr >= 0xFF4C) && (addr <= 0xFF7F))
             {
             }
 
-            // Executes if.
             else if (addr == 0xFFFF)
             {
                 IE = value;
@@ -407,7 +383,6 @@ namespace GameboyEmu.Core
                 return 0xFF;
             }
 
-            // Executes if.
             else if (addr >= 0xA000 && addr <= 0xBFFF)
             {
                 if (!EnableRAM && MapperType != MBCType.None)
@@ -438,7 +413,6 @@ namespace GameboyEmu.Core
                 return 0xFF;
             }
 
-            // Executes if.
             else if (addr == 0xFF00)
             {
                 return gameboy!.GetKeypadState();
@@ -446,25 +420,21 @@ namespace GameboyEmu.Core
 
             else if (addr == 0xFF04) return Memory[0xFF04];
 
-            // Executes if.
             else if (addr == 0xFF44)
             {
                 return gameboy.ReadLyForCpu();
             }
 
-            // Executes if.
             else if (addr >= 0xFF10 && addr <= 0xFF3F)
             {
                 return Apu.ReadRegister(addr);
             }
 
-            // Executes if.
             else if (addr == 0xFF0F)
             {
                 return IF;
             }
 
-            // Executes if.
             else if (addr == 0xFFFF)
             {
                 return IE;

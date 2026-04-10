@@ -905,7 +905,6 @@ namespace GameboyEmu.Core
                 byte result;
                 if ((cbOpcode & 0xC0) == 0x80)
                     result = ResBit(value, (cbOpcode >> 3) & 0x07);
-                // Executes if.
                 else if ((cbOpcode & 0xC0) == 0xC0)
                     result = SetBitVal(value, (cbOpcode >> 3) & 0x07);
                 else

@@ -613,7 +613,6 @@ namespace GameboyEmu.Core
             if (button && !TestBit(keyReq, 5))
                 requestInterupt = true;
 
-            // Executes if.
             else if (!button && !TestBit(keyReq, 4))
                 requestInterupt = true;
 
