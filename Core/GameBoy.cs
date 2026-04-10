@@ -41,7 +41,7 @@ namespace GameboyEmu.Core
         public APU aPU;
         public PPU pPU;
 
-        private readonly byte[] tempROM = new byte[0xFF];
+        private readonly byte[] tempROM = new byte[0x100];
 
         private bool _timaOverflowPending = false;
         private int _timaOverflowDelay = 0;
@@ -95,8 +95,11 @@ namespace GameboyEmu.Core
 
             if (!skipBootROM && File.Exists("dmg_boot.bin"))
             {
-                Array.Copy(mMU!.Cartridge, 0, tempROM, 0, 0xFF);
-                Array.Copy(File.ReadAllBytes("dmg_boot.bin"), 0, mMU!.Memory, 0x00, 0xFF);
+                // Preserve the full 0x0000-0x00FF cartridge window for accurate post-boot restore.
+                Array.Copy(mMU!.Cartridge, 0, tempROM, 0, Math.Min(tempROM.Length, mMU.Cartridge.Length));
+
+                byte[] bootRom = File.ReadAllBytes("dmg_boot.bin");
+                Array.Copy(bootRom, 0, mMU!.Memory, 0x00, Math.Min(0x100, bootRom.Length));
                 cPU!.registers.PC = 0x00;
                 _useBootROM = true;
             }
