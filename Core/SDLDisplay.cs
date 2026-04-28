@@ -361,6 +361,22 @@ namespace GameboyEmu.Core
             int marqueeDelayCounter = 0;
             int marqueeFrameCounter = 0;
 
+            int lastMouseX = -1;
+            int lastMouseY = -1;
+
+            int HoverIndexAt(int mx, int my)
+            {
+                int gx = (mx - GameX) / Scale;
+                int gy = (my - GameY) / Scale;
+                if (gx < 4 || gx >= ScreenWidth - 4) return -1;
+                if (gy < listY - 1) return -1;
+                int row = (gy - (listY - 1)) / itemHeight;
+                if (row < 0 || row >= maxVisible) return -1;
+                int idx = row + scrollOffset;
+                if (idx < 0 || idx >= romNames.Count) return -1;
+                return idx;
+            }
+
             while (IsOpen)
             {
                 while (SDL.SDL_PollEvent(out SDL.SDL_Event e) != 0)
@@ -403,6 +419,50 @@ namespace GameboyEmu.Core
                                     selected = idx;
                             }
                             break;
+
+                        case SDL.SDL_MOUSEMOTION:
+                        {
+                            lastMouseX = e.motion.x;
+                            lastMouseY = e.motion.y;
+                            int idx = HoverIndexAt(lastMouseX, lastMouseY);
+                            if (idx >= 0)
+                                selected = idx;
+                            break;
+                        }
+
+                        case SDL.SDL_MOUSEWHEEL:
+                        {
+                            int maxScroll = Math.Max(romNames.Count - maxVisible, 0);
+                            scrollOffset -= e.wheel.y;
+                            if (scrollOffset < 0) scrollOffset = 0;
+                            if (scrollOffset > maxScroll) scrollOffset = maxScroll;
+
+                            int idx = (lastMouseX >= 0 && lastMouseY >= 0)
+                                ? HoverIndexAt(lastMouseX, lastMouseY)
+                                : -1;
+                            if (idx >= 0)
+                            {
+                                selected = idx;
+                            }
+                            else
+                            {
+                                if (selected < scrollOffset) selected = scrollOffset;
+                                int lastVisible = Math.Min(scrollOffset + maxVisible - 1, romNames.Count - 1);
+                                if (selected > lastVisible) selected = lastVisible;
+                            }
+                            break;
+                        }
+
+                        case SDL.SDL_MOUSEBUTTONDOWN:
+                        {
+                            if (e.button.button != SDL.SDL_BUTTON_LEFT) break;
+                            int idx = HoverIndexAt(e.button.x, e.button.y);
+                            if (idx < 0) break;
+                            if (e.button.clicks >= 2)
+                                return (romPaths[idx], false, idx, scrollOffset);
+                            selected = idx;
+                            break;
+                        }
                     }
                 }
 

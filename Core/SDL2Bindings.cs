@@ -81,6 +81,12 @@ namespace GameboyEmu.Core
         public const uint SDL_QUIT = 0x100;
         public const uint SDL_KEYDOWN = 0x300;
         public const uint SDL_KEYUP = 0x301;
+        public const uint SDL_MOUSEMOTION = 0x400;
+        public const uint SDL_MOUSEBUTTONDOWN = 0x401;
+        public const uint SDL_MOUSEBUTTONUP = 0x402;
+        public const uint SDL_MOUSEWHEEL = 0x403;
+
+        public const byte SDL_BUTTON_LEFT = 1;
 
         public const int SDL_SCANCODE_RETURN = 40;
         public const int SDL_SCANCODE_SPACE = 44;
@@ -124,11 +130,55 @@ namespace GameboyEmu.Core
             public SDL_Keysym keysym;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_MouseMotionEvent
+        {
+            public uint type;
+            public uint timestamp;
+            public uint windowID;
+            public uint which;
+            public uint state;
+            public int x;
+            public int y;
+            public int xrel;
+            public int yrel;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_MouseButtonEvent
+        {
+            public uint type;
+            public uint timestamp;
+            public uint windowID;
+            public uint which;
+            public byte button;
+            public byte state;
+            public byte clicks;
+            private byte padding1;
+            public int x;
+            public int y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_MouseWheelEvent
+        {
+            public uint type;
+            public uint timestamp;
+            public uint windowID;
+            public uint which;
+            public int x;
+            public int y;
+            public uint direction;
+        }
+
         [StructLayout(LayoutKind.Explicit, Size = 64)]
         public struct SDL_Event
         {
             [FieldOffset(0)] public uint type;
             [FieldOffset(0)] public SDL_KeyboardEvent key;
+            [FieldOffset(0)] public SDL_MouseMotionEvent motion;
+            [FieldOffset(0)] public SDL_MouseButtonEvent button;
+            [FieldOffset(0)] public SDL_MouseWheelEvent wheel;
         }
 
         [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]

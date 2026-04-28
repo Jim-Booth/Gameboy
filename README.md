@@ -54,6 +54,7 @@ A Game Boy (DMG) emulator written in C# targeting .NET 9.0, using SDL2 for cross
 - Hold Up/Down to repeat navigation while browsing ROMs
 - Press A-Z or 0-9 to jump to the first ROM starting with that character
 - Press Ctrl+Enter in the ROM menu to launch a game without the boot ROM
+- Mouse support in the ROM menu: hover to highlight, scroll wheel to scroll, single click to select, double click to launch
 - ROM menu position is preserved when returning from a game
 - Long highlighted ROM names (>21 chars) marquee after a short delay, then reset when no longer highlighted
 
@@ -105,6 +106,10 @@ Over 180 DMG games have also been tested as working with this emulator.
 | Enter | Launch highlighted ROM |
 | Ctrl+Enter | Launch highlighted ROM without boot ROM |
 | Escape | Quit emulator |
+| Mouse Move | Highlight ROM under cursor |
+| Mouse Wheel | Scroll the ROM list |
+| Left Click | Select ROM under cursor |
+| Double Click | Launch ROM under cursor |
 
 > **Tip:** The WASD alternate keys are useful for games like Pinball Dreams where the arrow keys may feel less natural.
 
